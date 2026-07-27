@@ -1,0 +1,14 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "java",
+            "name": "BloodSugarApp",
+            "request": "launch",
+            "mainClass": "com.bloodsugar.BloodSugarApp",
+            "projectName": "bloodsugar",
+            "javaHome": "C:\\Program Files\\Eclipse Adoptium\\jdk-21.0.11.10-hotspot",
+            "vmArgs": "--module-path C:\\Users\\25323\\.m2\\repository\\org\\openjfx\\javafx-controls\\21\\javafx-controls-21-win.jar;C:\\Users\\25323\\.m2\\repository\\org\\openjfx\\javafx-graphics\\21\\javafx-graphics-21-win.jar;C:\\Users\\25323\\.m2\\repository\\org\\openjfx\\javafx-base\\21\\javafx-base-21-win.jar;C:\\Users\\25323\\.m2\\repository\\org\\openjfx\\javafx-fxml\\21\\javafx-fxml-21-win.jar --add-modules javafx.controls,javafx.fxml"
+        }
+    ]
+}

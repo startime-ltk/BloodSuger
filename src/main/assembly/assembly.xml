@@ -1,0 +1,50 @@
+<assembly xmlns="http://maven.apache.org/ASSEMBLY/2.1.0"
+          xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+          xsi:schemaLocation="http://maven.apache.org/ASSEMBLY/2.1.0 http://maven.apache.org/xsd/assembly-2.1.0.xsd">
+    <id>dist</id>
+    <formats>
+        <format>zip</format>
+    </formats>
+    <baseDirectory>BloodSugar</baseDirectory>
+
+    <fileSets>
+        <!-- 应用 JAR（Shade 产物的文件名固定为 BloodSugar.jar） -->
+        <fileSet>
+            <directory>${project.build.directory}</directory>
+            <outputDirectory>.</outputDirectory>
+            <includes>
+                <include>BloodSugar.jar</include>
+            </includes>
+        </fileSet>
+
+        <!-- JavaFX 模块 -->
+        <fileSet>
+            <directory>${project.build.directory}/javafx</directory>
+            <outputDirectory>javafx</outputDirectory>
+            <includes>
+                <include>*.jar</include>
+            </includes>
+        </fileSet>
+
+        <!-- 启动脚本 -->
+        <fileSet>
+            <directory>${project.basedir}/src/main/scripts</directory>
+            <outputDirectory>.</outputDirectory>
+            <includes>
+                <include>BloodSugar.bat</include>
+                <include>BloodSugar.sh</include>
+            </includes>
+            <fileMode>0755</fileMode>
+        </fileSet>
+
+        <!-- 桌面图标（项目根目录如有 icon.ico 自动打包） -->
+        <fileSet>
+            <directory>${project.basedir}</directory>
+            <outputDirectory>.</outputDirectory>
+            <includes>
+                <include>icon.ico</include>
+                <include>使用说明.txt</include>
+            </includes>
+        </fileSet>
+    </fileSets>
+</assembly>
