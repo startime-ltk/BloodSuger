@@ -8,16 +8,12 @@ import java.sql.SQLException;
 import java.time.LocalDateTime;
 import java.util.List;
 
-/**
- * 业务逻辑层
- */
+/** 业务逻辑层，UI 只跟它打交道 */
 public class BloodSugarService {
 
     private final BloodSugarDAO dao = new BloodSugarDAO();
 
-    /**
-     * 添加血糖记录，自动归类时间段
-     */
+    // 新增记录，时段自动归类
     public void addRecord(LocalDateTime recordTime, double bloodSugar,
             LocalDateTime mealTime, String mealType, String note) throws SQLException {
         String mealPeriod = PeriodClassifier.classify(recordTime, mealTime);
@@ -25,30 +21,22 @@ public class BloodSugarService {
         dao.insert(record);
     }
 
-    /**
-     * 获取所有记录
-     */
+    // 查全部
     public List<BloodSugarRecord> getAllRecords() throws SQLException {
         return dao.findAll();
     }
 
-    /**
-     * 按日期范围获取记录
-     */
+    // 按日期范围查
     public List<BloodSugarRecord> getRecordsByDateRange(LocalDateTime from, LocalDateTime to) throws SQLException {
         return dao.findByDateRange(from, to);
     }
 
-    /**
-     * 删除记录
-     */
+    // 删除一条
     public void deleteRecord(int id) throws SQLException {
         dao.delete(id);
     }
 
-    /**
-     * 更新记录
-     */
+    // 更新一条
     public void updateRecord(BloodSugarRecord record) throws SQLException {
         // 重新计算时段
         String mealPeriod = PeriodClassifier.classify(record.getRecordTime(), record.getMealTime());
@@ -57,9 +45,8 @@ public class BloodSugarService {
     }
 
     /**
-     * 查询指定时间之前最近一次用餐时间（用于餐别自动识别）。
-     * 基于凌晨 4:00 的新一天边界：仅查询记录时间所在业务日内的用餐记录，
-     * 若该业务日内无用餐则返回 null（视为空腹）。
+     * 找 before 之前最近的一次用餐时间，用来自动识别餐别。
+     * 只查当天（凌晨4点起）内的用餐，当天没吃过就返回 null，算空腹。
      */
     public LocalDateTime getLatestMealTimeBefore(LocalDateTime before) throws SQLException {
         if (before == null) return null;
@@ -68,9 +55,7 @@ public class BloodSugarService {
         return dao.findLatestMealTimeBefore(dayStart, before);
     }
 
-    /**
-     * 获取所有有记录的日期
-     */
+    // 有哪些日期有记录
     public List<String> getRecordDates() throws SQLException {
         return dao.findDistinctDates();
     }

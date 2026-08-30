@@ -1,6 +1,9 @@
 package com.bloodsugar.ui;
 
+import com.bloodsugar.config.AiConfig;
 import com.bloodsugar.model.BloodSugarRecord;
+import com.bloodsugar.service.AiSuggestionService;
+import com.bloodsugar.service.AiSuggestionService.AiException;
 import com.bloodsugar.service.BloodSugarService;
 import com.bloodsugar.util.PeriodClassifier;
 
@@ -43,6 +46,8 @@ import java.util.stream.Collectors;
 public class MainUI {
 
     private final BloodSugarService service = new BloodSugarService();
+    private final AiConfig aiConfig = AiConfig.load();
+    private final AiSuggestionService aiService = new AiSuggestionService();
 
     private TableView<BloodSugarRecord> table;
     private LineChart<String, Number> chart;
@@ -63,7 +68,7 @@ public class MainUI {
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
     private static final DateTimeFormatter CHART_FMT = DateTimeFormatter.ofPattern("MM-dd HH:mm");
 
-    // ==================== 糖果马卡龙配色常量（鲜艳可爱，摆脱灰蒙） ====================
+    // 糖果马卡龙配色，鲜艳一点，别那么灰
     private static final String COLOR_BG = "#EAFCF0";          // 主背景 薄荷糖白
     private static final String COLOR_PANEL = "#FFFFFF";       // 面板 纯白
     private static final String COLOR_BORDER = "#B8EED0";      // 边框 亮薄荷绿
@@ -90,14 +95,14 @@ public class MainUI {
     private static final String COLOR_HEADER = "#D9F9E4";      // 表头 亮薄荷
     private static final String COLOR_STATUS = "#EFFBF2";      // 状态栏 薄荷白
 
-    /** 绿色系渐变文字（艺术字标题填充） */
+    // 标题用的绿色渐变
     private static final LinearGradient GREEN_GRADIENT = new LinearGradient(0, 0, 1, 1, true,
             CycleMethod.NO_CYCLE,
             new Stop(0, Color.web(COLOR_TITLE_DARK)),
             new Stop(0.55, Color.web(COLOR_TITLE)),
             new Stop(1, Color.web(COLOR_TITLE_LIGHT)));
 
-    /** 糖果系渐变文字（主标题艺术字填充：樱粉→蜜桃橙→亮糖绿） */
+    // 主标题用的糖果渐变：樱粉→蜜桃橙→亮糖绿
     private static final LinearGradient CANDY_GRADIENT = new LinearGradient(0, 0, 1, 1, true,
             CycleMethod.NO_CYCLE,
             new Stop(0, Color.web("#FF7EB3")),
@@ -124,7 +129,7 @@ public class MainUI {
         return scene;
     }
 
-    // ==================== 工具栏 ====================
+    // 顶部工具栏
     private HBox buildToolbar(Stage stage) {
         HBox toolbar = new HBox(10);
         toolbar.setPadding(new Insets(12, 16, 12, 16));
@@ -156,14 +161,17 @@ public class MainUI {
         Button summaryBtn = styledButton("生成总结", COLOR_BLUE_LIGHT, COLOR_BLUE_DARK, "#B5E7FF", COLOR_BLUE_LIGHT, "#1899E0", "#7FD3FF");
         summaryBtn.setOnAction(e -> showSummaryDialog(stage));
 
+        Button aiBtn = styledButton("AI 建议", "#FF9EC5", "#F36AA9", "#FFC0DB", "#FF9EC5", "#D74F8E", "#FFB9D6");
+        aiBtn.setOnAction(e -> showAiDialog(stage));
+
         Button refreshBtn = styledButton("刷新", COLOR_ORANGE_LIGHT, COLOR_ORANGE_DARK, "#FFDDB8", COLOR_ORANGE_LIGHT, "#F08A33", "#FFC48C");
         refreshBtn.setOnAction(e -> refreshAll());
 
-        toolbar.getChildren().addAll(dots, title, spacer, addBtn, summaryBtn, refreshBtn);
+        toolbar.getChildren().addAll(dots, title, spacer, addBtn, summaryBtn, aiBtn, refreshBtn);
         return toolbar;
     }
 
-    /** 胖乎乎糖果按钮样式：亮渐变 + 大圆角 + 底部深色立体边 */
+    /** 糖果按钮样式：亮渐变、大圆角、底部深色边 */
     private String buttonStyle(String from, String to, String border) {
         return "-fx-background-color: linear-gradient(to bottom, " + from + ", " + to + "); "
                 + "-fx-text-fill: white; -fx-font-size: 14px; -fx-padding: 11 22; "
@@ -172,7 +180,7 @@ public class MainUI {
                 + "-fx-cursor: hand; -fx-font-weight: bold;";
     }
 
-    /** 糖果按钮：胖圆角 + 彩色立体阴影 + 悬停变亮 */
+    /** 糖果按钮：圆角大、带彩色阴影，鼠标放上去变亮 */
     private Button styledButton(String text, String from, String to, String hoverFrom, String hoverTo,
                                 String border, String shadow) {
         Button btn = new Button(text);
@@ -183,7 +191,7 @@ public class MainUI {
         return btn;
     }
 
-    /** 艺术字子标题：糖果渐变填充 + 柔和彩色阴影 */
+    /** 渐变艺术字小标题 */
     private Label artLabel(String text, double size) {
         Label label = new Label(text);
         label.setFont(Font.font("YouYuan", FontWeight.BOLD, size));
@@ -192,7 +200,7 @@ public class MainUI {
         return label;
     }
 
-    /** 统一对话框：糖果奶油渐变背景 + 大圆角 + 糖果渐变按钮 */
+    /** 统一对话框样式：奶油渐变背景、大圆角、渐变按钮 */
     private void styleDialogPane(DialogPane pane) {
         pane.setStyle("-fx-background-color: linear-gradient(to bottom right, #FFF6E9, " + COLOR_BG + ", #FFF0F6); "
                 + "-fx-background-radius: 20; -fx-border-color: " + COLOR_BORDER + "; -fx-border-radius: 20;");
@@ -222,7 +230,7 @@ public class MainUI {
         }
     }
 
-    // ==================== 左侧面板 ====================
+    // 左侧面板
     private VBox buildLeftPanel() {
         VBox left = new VBox(8);
         left.setPadding(new Insets(12));
@@ -380,9 +388,7 @@ public class MainUI {
         return tf;
     }
 
-    /**
-     * 用餐时间信息：记录时间 + 餐名
-     */
+    // 一顿饭的信息：时间 + 名字
     private static class MealTimeInfo {
         final LocalDateTime time;
         final String mealName; // "早餐" / "午餐" / "晚餐" / "加餐"
@@ -393,20 +399,20 @@ public class MainUI {
     }
 
     /**
-     * 综合左侧面板的今日用餐时间（优先）和数据库历史记录，
-     * 返回指定时间之前最近一次用餐时间及其餐名。
+     * 找 recordTime 之前最近的一顿：优先看左侧面板填的时间，
+     * 面板没有再看数据库里的历史记录，返回时间+餐名。
      */
     private MealTimeInfo resolveNearestMealTime(LocalDateTime recordTime) {
         MealTimeInfo best = null;
 
-        // 1. 依次检查四个餐别的面板时间（面板时间带餐名，优先）
+        // 先看面板里填的四个餐别时间（面板带餐名，优先级高）
         best = updateBest(best, parseMealField(breakfastField), "早餐", recordTime);
         best = updateBest(best, parseMealField(lunchField), "午餐", recordTime);
         best = updateBest(best, parseMealField(dinnerField), "晚餐", recordTime);
         best = updateBest(best, parseMealField(extraMealField), "加餐", recordTime);
 
-        // 2. 从数据库查询记录时间所在业务日（凌晨4点起）内的历史用餐记录（无明确餐名，降级为"用餐"）
-        //    业务日内无用餐记录时返回 null，最终餐别显示"空腹"
+        // 再看数据库当天（凌晨4点起）的历史用餐记录，没有餐名就统一叫"用餐"；
+        // 当天没吃过就返回 null，最终显示"空腹"
         try {
             LocalDateTime dbMealTime = service.getLatestMealTimeBefore(recordTime);
             if (dbMealTime != null) {
@@ -427,19 +433,18 @@ public class MainUI {
     }
 
     /**
-     * 根据测量时间和最近用餐信息，生成精确的餐别描述。
-     * 如：早餐后 2小时35分钟、空腹、睡前
-     * 规则：新的一天（凌晨4点起）内无任何用餐数据 → 空腹，不计算距上一餐时间。
+     * 生成餐别描述，比如"早餐后 2小时35分钟"、"空腹"、"睡前"。
+     * 当天（凌晨4点起）没吃过饭就直接算空腹。
      */
     private String computeMealTypeDescription(LocalDateTime recordTime, MealTimeInfo mealInfo) {
         if (recordTime == null) return "空腹";
-        // 新的一天（凌晨4点起）内无任何用餐数据 → 空腹
+        // 当天没吃过饭，算空腹
         if (mealInfo == null) return "空腹";
-        // 晚上 22:00 以后 → 睡前
+        // 22 点以后算睡前
         if (recordTime.toLocalTime().getHour() >= 22) return "睡前";
 
         long minutes = java.time.Duration.between(mealInfo.time, recordTime).toMinutes();
-        if (minutes < 0) return "空腹"; // 记录时间早于用餐时间
+        if (minutes < 0) return "空腹"; // 比吃饭时间还早，算空腹
 
         long hours = minutes / 60;
         long mins = minutes % 60;
@@ -457,7 +462,7 @@ public class MainUI {
         String s = field.getText().trim();
         if (s.isEmpty()) return null;
         try {
-            // 面板用餐时间按"今日业务日"（凌晨4点边界）解析：凌晨 0-4 点归属前一天
+            // 面板时间按今天的业务日解析，凌晨 0~4 点算前一天
             LocalDate businessToday = PeriodClassifier.getBusinessDate(LocalDateTime.now());
             return LocalDateTime.of(businessToday, LocalTime.parse(s.replace('.', ':')));
         } catch (Exception e) {
@@ -465,7 +470,7 @@ public class MainUI {
         }
     }
 
-    // ==================== 图表面板 ====================
+    // 图表面板
     private VBox buildChartPanel() {
         VBox panel = new VBox(8);
         panel.setPadding(new Insets(14));
@@ -508,7 +513,7 @@ public class MainUI {
     }
 
     private void handleChartRightClick() {
-        // 遍历所有数据点，找到鼠标所在的数据点
+        // 挨个数据点找鼠标悬停的那个
         for (XYChart.Series<String, Number> series : chart.getData()) {
             for (XYChart.Data<String, Number> data : series.getData()) {
                 Node node = data.getNode();
@@ -541,7 +546,7 @@ public class MainUI {
         menu.show(anchor, javafx.geometry.Side.BOTTOM, 0, 0);
     }
 
-    // ==================== 状态栏 ====================
+    // 底部状态栏
     private HBox buildStatusBar() {
         HBox bar = new HBox();
         bar.setPadding(new Insets(8, 16, 8, 16));
@@ -554,7 +559,7 @@ public class MainUI {
         return bar;
     }
 
-    // ==================== 添加记录 ====================
+    // 添加记录
     private void showAddDialog(Stage owner) {
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.initOwner(owner);
@@ -572,7 +577,7 @@ public class MainUI {
 
         TextField timeField = new TextField(LocalTime.now().format(TIME_FMT));
         timeField.setPromptText("HH:mm");
-        // 用户输入 "." 时自动替换为 ":"
+        // 用户输入 "." 时自动换成 ":"
         timeField.setTextFormatter(new TextFormatter<String>(change -> {
             if (change.getText().contains(".")) {
                 change.setText(change.getText().replace('.', ':'));
@@ -655,7 +660,7 @@ public class MainUI {
         dialog.showAndWait();
     }
 
-    // ==================== 健康建议 ====================
+    // 健康建议
     private void showAdviceDialog(Stage owner, double bloodSugar, String period) {
         String advice = generateAdvice(bloodSugar, period);
         Alert alert = new Alert(Alert.AlertType.INFORMATION);
@@ -689,7 +694,186 @@ public class MainUI {
         return String.format("血糖明显偏高（正常上限 %.1f mmol/L），请避免高糖食物，增加运动量。如多次偏高请咨询医生。", range[1]);
     }
 
-    // ==================== 删除 ====================
+    // AI 智能建议
+    private void showAiDialog(Stage owner) {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.initOwner(owner);
+        dialog.setTitle("AI 智能控糖建议");
+        dialog.setHeaderText("让大模型根据近期血糖记录，生成个性化控糖建议");
+
+        VBox box = new VBox(10);
+        box.setPadding(new Insets(10));
+
+        // 模型切换：下拉框一键切换智谱 GLM / DeepSeek
+        Label modelLb = new Label("模型：");
+        modelLb.setTextFill(Color.web(COLOR_TITLE));
+        ComboBox<String> modelCombo = new ComboBox<>();
+        modelCombo.getItems().addAll("智谱 GLM-4.6-Flash", "DeepSeek-V4-Flash");
+        modelCombo.setValue(AiConfig.displayName(aiConfig.getActiveProvider()));
+        modelCombo.setStyle("-fx-background-radius: 8; -fx-border-radius: 8; "
+                + "-fx-border-color: " + COLOR_MEAL_BORDER + "; -fx-background-color: #FFFFFF;");
+
+        Button settingsBtn = new Button("设置 API Key");
+        settingsBtn.setStyle("-fx-text-fill: " + COLOR_BLUE + "; -fx-font-size: 12px; -fx-cursor: hand; -fx-font-weight: bold;");
+        settingsBtn.setOnAction(e -> showAiSettingsDialog(owner, aiConfig));
+
+        Label keyStatus = new Label();
+        keyStatus.setFont(Font.font(11));
+
+        HBox topRow = new HBox(8, modelLb, modelCombo, settingsBtn, keyStatus);
+        topRow.setAlignment(Pos.CENTER_LEFT);
+
+        Button generateBtn = styledButton("生成建议", COLOR_GREEN_LIGHT, COLOR_GREEN_DARK, "#A9F0C4", COLOR_GREEN_LIGHT, "#1E9E50", "#7DE3A4");
+
+        TextArea resultArea = new TextArea();
+        resultArea.setEditable(false);
+        resultArea.setWrapText(true);
+        resultArea.setPromptText("点击「生成建议」，这里会显示 AI 给出的控糖建议……");
+        resultArea.setFont(Font.font("Microsoft YaHei", 13));
+        resultArea.setPrefSize(560, 360);
+        resultArea.setStyle("-fx-control-inner-background: #FDFEFB; -fx-background-radius: 14; "
+                + "-fx-border-radius: 14; -fx-border-color: " + COLOR_BORDER + ";");
+
+        Label hint = new Label("基于最近 30 条血糖记录生成，结果仅供参考，不能替代医生诊断");
+        hint.setFont(Font.font(11));
+        hint.setTextFill(Color.web("#8A8578"));
+
+        box.getChildren().addAll(topRow, generateBtn, resultArea, hint);
+
+        // 切换模型时同步 Key 状态提示，并把当前选择保存到配置
+        Runnable refreshKeyStatus = () -> {
+            String provider = modelCombo.getValue().startsWith("智谱")
+                    ? AiConfig.PROVIDER_GLM : AiConfig.PROVIDER_DEEPSEEK;
+            aiConfig.setActiveProvider(provider);
+            try {
+                aiConfig.save();
+            } catch (RuntimeException ignored) {
+                // 保存失败不阻塞切换，下次打开仍可用内存中的选择
+            }
+            boolean hasKey = aiConfig.getApiKey(provider) != null && !aiConfig.getApiKey(provider).isBlank();
+            keyStatus.setText(hasKey ? "✓ Key 已配置" : "⚠ 未配置 Key");
+            keyStatus.setTextFill(hasKey ? Color.web(COLOR_NORMAL) : Color.web(COLOR_HIGH));
+        };
+        modelCombo.setOnAction(e -> refreshKeyStatus.run());
+        refreshKeyStatus.run();
+
+        generateBtn.setOnAction(e -> {
+            String provider = modelCombo.getValue().startsWith("智谱")
+                    ? AiConfig.PROVIDER_GLM : AiConfig.PROVIDER_DEEPSEEK;
+            generateBtn.setDisable(true);
+            resultArea.setText("正在连接 " + AiConfig.displayName(provider) + " 生成建议，请稍候……");
+            new Thread(() -> {
+                try {
+                    List<BloodSugarRecord> records = service.getAllRecords();
+                    String advice = aiService.generateSuggestion(records, aiConfig, provider);
+                    Platform.runLater(() -> {
+                        resultArea.setText(advice);
+                        statusLabel.setText("AI 建议已生成（" + AiConfig.displayName(provider) + "）");
+                    });
+                } catch (AiException ex) {
+                    Platform.runLater(() -> {
+                        resultArea.clear();
+                        showAlert(ex.getMessage());
+                    });
+                } catch (SQLException ex) {
+                    Platform.runLater(() -> {
+                        resultArea.clear();
+                        showAlert("读取血糖记录失败：" + ex.getMessage());
+                    });
+                } finally {
+                    Platform.runLater(() -> generateBtn.setDisable(false));
+                }
+            }).start();
+        });
+
+        dialog.getDialogPane().setContent(box);
+        ButtonType closeType = new ButtonType("关闭", ButtonBar.ButtonData.CANCEL_CLOSE);
+        dialog.getDialogPane().getButtonTypes().addAll(closeType);
+        styleDialogPane(dialog.getDialogPane());
+        Button closeBtn = (Button) dialog.getDialogPane().lookupButton(closeType);
+        if (closeBtn != null) {
+            String normal = "-fx-background-color: linear-gradient(to bottom, #FFD3E2, #FFA8C5); "
+                    + "-fx-text-fill: #8C3B52; -fx-font-size: 13px; -fx-padding: 8 20; "
+                    + "-fx-background-radius: 18; -fx-border-radius: 18; "
+                    + "-fx-border-color: #E87FA5; -fx-border-width: 0 0 3 0; "
+                    + "-fx-cursor: hand; -fx-font-weight: bold;";
+            closeBtn.setStyle(normal);
+            closeBtn.setEffect(new DropShadow(4, 2, 3, Color.web("#FFC4D9")));
+        }
+        dialog.showAndWait();
+    }
+
+    // AI 模型设置：两个模型各自的 Key 与接口配置
+    private void showAiSettingsDialog(Stage owner, AiConfig config) {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.initOwner(owner);
+        dialog.setTitle("AI 模型设置");
+        dialog.setHeaderText("填写两个模型的 API Key（仅保存在本地配置文件，不会上传）");
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(10);
+        grid.setPadding(new Insets(16));
+
+        Label glmTitle = artLabel("智谱 GLM-4.6-Flash", 12);
+        grid.add(glmTitle, 0, 0, 2, 1);
+        grid.add(new Label("接口地址:"), 0, 1);
+        TextField glmUrl = new TextField(config.getBaseUrl(AiConfig.PROVIDER_GLM));
+        glmUrl.setPrefWidth(380);
+        grid.add(glmUrl, 1, 1);
+        grid.add(new Label("模型名:"), 0, 2);
+        TextField glmModel = new TextField(config.getModel(AiConfig.PROVIDER_GLM));
+        grid.add(glmModel, 1, 2);
+        grid.add(new Label("API Key:"), 0, 3);
+        PasswordField glmKey = new PasswordField();
+        glmKey.setText(config.getApiKey(AiConfig.PROVIDER_GLM));
+        glmKey.setPrefWidth(380);
+        grid.add(glmKey, 1, 3);
+
+        Label dsTitle = artLabel("DeepSeek-V4-Flash", 12);
+        grid.add(dsTitle, 0, 5, 2, 1);
+        grid.add(new Label("接口地址:"), 0, 6);
+        TextField dsUrl = new TextField(config.getBaseUrl(AiConfig.PROVIDER_DEEPSEEK));
+        dsUrl.setPrefWidth(380);
+        grid.add(dsUrl, 1, 6);
+        grid.add(new Label("模型名:"), 0, 7);
+        TextField dsModel = new TextField(config.getModel(AiConfig.PROVIDER_DEEPSEEK));
+        grid.add(dsModel, 1, 7);
+        grid.add(new Label("API Key:"), 0, 8);
+        PasswordField dsKey = new PasswordField();
+        dsKey.setText(config.getApiKey(AiConfig.PROVIDER_DEEPSEEK));
+        dsKey.setPrefWidth(380);
+        grid.add(dsKey, 1, 8);
+
+        Label tip = new Label("提示：也可直接编辑本地配置文件 " + AiConfig.getConfigFile());
+        tip.setFont(Font.font(11));
+        tip.setTextFill(Color.web("#8A8578"));
+        grid.add(tip, 0, 9, 2, 1);
+
+        dialog.getDialogPane().setContent(grid);
+        dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        styleDialogPane(dialog.getDialogPane());
+
+        dialog.setResultConverter(btn -> {
+            if (btn != ButtonType.OK) return null;
+            config.setBaseUrl(AiConfig.PROVIDER_GLM, glmUrl.getText().trim());
+            config.setModel(AiConfig.PROVIDER_GLM, glmModel.getText().trim());
+            config.setApiKey(AiConfig.PROVIDER_GLM, glmKey.getText().trim());
+            config.setBaseUrl(AiConfig.PROVIDER_DEEPSEEK, dsUrl.getText().trim());
+            config.setModel(AiConfig.PROVIDER_DEEPSEEK, dsModel.getText().trim());
+            config.setApiKey(AiConfig.PROVIDER_DEEPSEEK, dsKey.getText().trim());
+            try {
+                config.save();
+                statusLabel.setText("AI 配置已保存");
+            } catch (RuntimeException ex) {
+                showAlert("保存配置失败：" + ex.getMessage());
+            }
+            return btn;
+        });
+        dialog.showAndWait();
+    }
+
+    // 删除记录相关
     private void deleteSelected() {
         List<BloodSugarRecord> selected = getCheckedRecords();
         if (selected.isEmpty()) {
@@ -760,7 +944,7 @@ public class MainUI {
         TextField timeField = new TextField(
                 rt != null ? rt.format(TIME_FMT) : LocalTime.now().format(TIME_FMT));
         timeField.setPromptText("HH:mm");
-        // 用户输入 "." 时自动替换为 ":"
+        // 用户输入 "." 时自动换成 ":"
         timeField.setTextFormatter(new TextFormatter<String>(change -> {
             if (change.getText().contains(".")) {
                 change.setText(change.getText().replace('.', ':'));
@@ -842,7 +1026,7 @@ public class MainUI {
         dialog.showAndWait();
     }
 
-    // ==================== 总结报告 ====================
+    // 总结报告
     private void showSummaryDialog(Stage owner) {
         if (currentChartRecords.isEmpty()) {
             showAlert("暂无记录，请先添加血糖数据");
@@ -1033,7 +1217,7 @@ public class MainUI {
         return "【胰岛素抵抗评估】\n" + risk;
     }
 
-    // ==================== 刷新 ====================
+    // 刷新数据
     private void refreshAll() {
         try {
             refreshDates();
@@ -1062,7 +1246,7 @@ public class MainUI {
                 currentChartRecords = service.getAllRecords();
             } else {
                 LocalDate date = LocalDate.parse(selected);
-                // 按凌晨 4:00 的业务日边界筛选：[当天4:00, 次日4:00)
+                // 按凌晨 4 点的业务日边界筛选：[当天4:00, 次日4:00)
                 currentChartRecords = service.getRecordsByDateRange(
                         PeriodClassifier.getBusinessDayStart(date),
                         PeriodClassifier.getBusinessDayEnd(date));
@@ -1082,12 +1266,12 @@ public class MainUI {
         }
     }
 
-    // ==================== 趋势曲线 ====================
+    // 趋势曲线
     private void updateChart(List<BloodSugarRecord> records) {
         chart.getData().clear();
         chartLabelToId.clear();
 
-        // 根据数据最大值动态调整 Y 轴上限
+        // Y 轴上限按数据最大值动态调
         double maxSugar = records.stream().mapToDouble(BloodSugarRecord::getBloodSugar).max().orElse(8);
         double upperBound = Math.max(10, Math.ceil(maxSugar * 1.3));
         double tickUnit = upperBound <= 15 ? 1 : upperBound <= 25 ? 2 : 5;

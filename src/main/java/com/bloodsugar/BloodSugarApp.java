@@ -6,9 +6,7 @@ import javafx.scene.Scene;
 import javafx.scene.image.Image;
 import javafx.stage.Stage;
 
-/**
- * 血糖记录系统 应用入口
- */
+/** 程序入口：JavaFX 应用启动类 */
 public class BloodSugarApp extends Application {
 
     @Override

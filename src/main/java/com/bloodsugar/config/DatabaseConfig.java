@@ -9,8 +9,8 @@ import java.sql.SQLException;
 import java.sql.Statement;
 
 /**
- * 数据库配置与连接管理（H2 嵌入式 + HikariCP 连接池）
- * 数据文件存储在用户目录下 .bloodsugar/data，无需额外安装数据库
+ * H2 嵌入式数据库连接配置（HikariCP 连接池）。
+ * 数据文件放在用户主目录的 .bloodsugar/data 下，免安装。
  */
 public class DatabaseConfig {
 
@@ -35,7 +35,7 @@ public class DatabaseConfig {
         config.setIdleTimeout(300000);
         dataSource = new HikariDataSource(config);
 
-        // 启动时自动建表
+        // 启动时顺手把表建好
         try (Connection conn = dataSource.getConnection();
              Statement stmt = conn.createStatement()) {
             stmt.execute("CREATE TABLE IF NOT EXISTS blood_sugar_records ("

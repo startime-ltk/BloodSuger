@@ -52,6 +52,14 @@
             <version>1.7.36</version>
             <scope>runtime</scope>
         </dependency>
+
+        <!-- Gson：轻量 JSON 解析（AI 智能建议模块调用 OpenAI 兼容接口用。
+             相比 Jackson/Fastjson 体量最小且无传递依赖，仅需解析/构造请求与响应体） -->
+        <dependency>
+            <groupId>com.google.code.gson</groupId>
+            <artifactId>gson</artifactId>
+            <version>2.10.1</version>
+        </dependency>
     </dependencies>
 
     <build>

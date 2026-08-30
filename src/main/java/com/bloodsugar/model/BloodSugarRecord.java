@@ -2,18 +2,16 @@ package com.bloodsugar.model;
 
 import java.time.LocalDateTime;
 
-/**
- * 血糖记录 实体模型
- */
+/** 一条血糖记录 */
 public class BloodSugarRecord {
 
     private int id;
-    private LocalDateTime recordTime;   // 测量时间
-    private double bloodSugar;          // 血糖值 mmol/L
-    private LocalDateTime mealTime;     // 用餐时间（可为空）
-    private String mealPeriod;          // 时间段（空腹 / 餐后1h / 餐后2h / 餐后3h）
-    private String mealType;            // 餐别（早餐 / 午餐 / 晚餐）
-    private String note;                // 备注
+    private LocalDateTime recordTime; // 测量时间
+    private double bloodSugar; // 血糖值 mmol/L
+    private LocalDateTime mealTime; // 用餐时间，可能没有
+    private String mealPeriod; // 空腹/餐后1h/餐后2h/餐后3h
+    private String mealType; // 早餐/午餐/晚餐
+    private String note; // 备注
 
     public BloodSugarRecord() {}
 

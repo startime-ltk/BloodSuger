@@ -8,14 +8,10 @@ import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * 血糖记录数据访问层
- */
+/** 数据访问层，读写 blood_sugar_records 表 */
 public class BloodSugarDAO {
 
-    /**
-     * 插入一条血糖记录
-     */
+    // 插入一条记录
     public void insert(BloodSugarRecord record) throws SQLException {
         String sql = "INSERT INTO blood_sugar_records (record_time, blood_sugar, meal_time, meal_period, meal_type, note) VALUES (?, ?, ?, ?, ?, ?)";
         try (Connection conn = DatabaseConfig.getConnection();
@@ -30,9 +26,7 @@ public class BloodSugarDAO {
         }
     }
 
-    /**
-     * 查询所有记录，按测量时间倒序
-     */
+    // 查全部，按测量时间倒序
     public List<BloodSugarRecord> findAll() throws SQLException {
         String sql = "SELECT * FROM blood_sugar_records ORDER BY record_time DESC";
         List<BloodSugarRecord> list = new ArrayList<>();
@@ -46,9 +40,7 @@ public class BloodSugarDAO {
         return list;
     }
 
-    /**
-     * 按日期范围查询（半开区间 [from, to)）
-     */
+    // 按日期范围查，区间是 [from, to)
     public List<BloodSugarRecord> findByDateRange(LocalDateTime from, LocalDateTime to) throws SQLException {
         String sql = "SELECT * FROM blood_sugar_records WHERE record_time >= ? AND record_time < ? ORDER BY record_time ASC";
         List<BloodSugarRecord> list = new ArrayList<>();
@@ -65,9 +57,7 @@ public class BloodSugarDAO {
         return list;
     }
 
-    /**
-     * 删除一条记录
-     */
+    // 按 id 删除
     public void delete(int id) throws SQLException {
         String sql = "DELETE FROM blood_sugar_records WHERE id = ?";
         try (Connection conn = DatabaseConfig.getConnection();
@@ -77,9 +67,7 @@ public class BloodSugarDAO {
         }
     }
 
-    /**
-     * 更新一条记录
-     */
+    // 按 id 更新
     public void update(BloodSugarRecord record) throws SQLException {
         String sql = "UPDATE blood_sugar_records SET record_time=?, blood_sugar=?, meal_time=?, meal_period=?, meal_type=?, note=? WHERE id=?";
         try (Connection conn = DatabaseConfig.getConnection();
@@ -95,12 +83,7 @@ public class BloodSugarDAO {
         }
     }
 
-    /**
-     * 查询指定业务日（凌晨4点起）内、指定时间之前（含）最近一次用餐时间
-     * @param dayStart 业务日起始时间（当天凌晨 4:00）
-     * @param before   参照时间（一般为血糖测量时间）
-     * @return 最近的用餐时间，无记录返回 null
-     */
+    // 查某业务日当天、before 之前（含）最近的一顿，没有就返回 null
     public LocalDateTime findLatestMealTimeBefore(LocalDateTime dayStart, LocalDateTime before) throws SQLException {
         String sql = "SELECT MAX(meal_time) FROM blood_sugar_records "
                 + "WHERE meal_time IS NOT NULL AND meal_time >= ? AND meal_time <= ?";
@@ -118,10 +101,7 @@ public class BloodSugarDAO {
         return null;
     }
 
-    /**
-     * 获取所有有记录的日期（用于日历筛选），以凌晨 4:00 为一天边界：
-     * 凌晨 0:00 - 3:59 的记录归属前一天
-     */
+    // 有记录的日期列表；凌晨 4 点前记的算前一天
     public List<String> findDistinctDates() throws SQLException {
         String sql = "SELECT DISTINCT "
                 + "CASE WHEN EXTRACT(HOUR FROM record_time) < 4 "
