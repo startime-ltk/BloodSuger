@@ -5,6 +5,7 @@ import com.bloodsugar.model.BloodSugarRecord;
 import com.bloodsugar.util.PeriodClassifier;
 
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -53,6 +54,26 @@ public class BloodSugarService {
         java.time.LocalDate businessDate = PeriodClassifier.getBusinessDate(before);
         LocalDateTime dayStart = PeriodClassifier.getBusinessDayStart(businessDate);
         return dao.findLatestMealTimeBefore(dayStart, before);
+    }
+
+    /**
+     * 保存/覆盖用餐时间：同一业务日同一餐别只保留最新一条，
+     * 再次保存时覆盖旧值。业务日按凌晨4点边界计算。
+     */
+    public void saveMealTime(String mealName, LocalDateTime mealTime) throws SQLException {
+        if (mealName == null || mealTime == null) return;
+        LocalDate businessDate = PeriodClassifier.getBusinessDate(mealTime);
+        dao.upsertMealTime(businessDate, mealName, mealTime);
+    }
+
+    /**
+     * 查 before 之前最近一条已保存的用餐时间（来自 meal_times 表），
+     * 用于餐别自动识别时兜底（面板未填但已保存过的情况）。
+     */
+    public LocalDateTime getLatestSavedMealTime(LocalDateTime before) throws SQLException {
+        if (before == null) return null;
+        LocalDate businessDate = PeriodClassifier.getBusinessDate(before);
+        return dao.findLatestSavedMealTime(businessDate, before);
     }
 
     // 有哪些日期有记录

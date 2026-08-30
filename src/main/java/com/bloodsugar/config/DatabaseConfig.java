@@ -48,6 +48,15 @@ public class DatabaseConfig {
                     + "note VARCHAR(200), "
                     + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
                     + ")");
+            // 用餐时间表：同一业务日（凌晨4点边界）同一餐别只保留一条，重复保存覆盖旧值
+            stmt.execute("CREATE TABLE IF NOT EXISTS meal_times ("
+                    + "id INT AUTO_INCREMENT PRIMARY KEY, "
+                    + "business_date DATE NOT NULL, "
+                    + "meal_name VARCHAR(20) NOT NULL, "
+                    + "meal_time TIMESTAMP NOT NULL, "
+                    + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP, "
+                    + "CONSTRAINT uk_meal_business UNIQUE (business_date, meal_name)"
+                    + ")");
         } catch (SQLException e) {
             throw new RuntimeException("数据库初始化失败", e);
         }

@@ -5,6 +5,7 @@ import com.bloodsugar.model.BloodSugarRecord;
 import com.bloodsugar.service.AiSuggestionService;
 import com.bloodsugar.service.AiSuggestionService.AiException;
 import com.bloodsugar.service.BloodSugarService;
+import com.bloodsugar.service.ExportService;
 import com.bloodsugar.util.PeriodClassifier;
 
 import javafx.application.Platform;
@@ -33,6 +34,7 @@ import javafx.scene.shape.Circle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
+import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 import java.sql.SQLException;
@@ -48,6 +50,7 @@ public class MainUI {
     private final BloodSugarService service = new BloodSugarService();
     private final AiConfig aiConfig = AiConfig.load();
     private final AiSuggestionService aiService = new AiSuggestionService();
+    private final ExportService exportService = new ExportService();
 
     private TableView<BloodSugarRecord> table;
     private LineChart<String, Number> chart;
@@ -164,10 +167,13 @@ public class MainUI {
         Button aiBtn = styledButton("AI 建议", "#FF9EC5", "#F36AA9", "#FFC0DB", "#FF9EC5", "#D74F8E", "#FFB9D6");
         aiBtn.setOnAction(e -> showAiDialog(stage));
 
+        Button exportBtn = styledButton("导出报告", "#C9B2FF", "#9B6BFF", "#E0D2FF", "#B78DFF", "#7F4FD8", "#CDB4FF");
+        exportBtn.setOnAction(e -> showExportDialog(stage));
+
         Button refreshBtn = styledButton("刷新", COLOR_ORANGE_LIGHT, COLOR_ORANGE_DARK, "#FFDDB8", COLOR_ORANGE_LIGHT, "#F08A33", "#FFC48C");
         refreshBtn.setOnAction(e -> refreshAll());
 
-        toolbar.getChildren().addAll(dots, title, spacer, addBtn, summaryBtn, aiBtn, refreshBtn);
+        toolbar.getChildren().addAll(dots, title, spacer, addBtn, summaryBtn, aiBtn, exportBtn, refreshBtn);
         return toolbar;
     }
 
@@ -373,10 +379,45 @@ public class MainUI {
         String mealHover = buttonStyle("#A9F0C4", COLOR_GREEN_LIGHT, "#1E9E50") + " -fx-font-size: 12px; -fx-padding: 9 18;";
         saveMealBtn.setOnMouseEntered(e -> saveMealBtn.setStyle(mealHover));
         saveMealBtn.setOnMouseExited(e -> saveMealBtn.setStyle(mealNormal));
-        saveMealBtn.setOnAction(e -> statusLabel.setText("用餐时间已保存"));
+        saveMealBtn.setOnAction(e -> saveMealTimes());
 
         panel.getChildren().addAll(title, grid, saveMealBtn);
         return panel;
+    }
+
+    /**
+     * 保存左侧面板的用餐时间到 meal_times 表。
+     * 同一业务日（凌晨4点边界）同一餐别只保留最新一条，重复保存覆盖旧值。
+     */
+    private void saveMealTimes() {
+        TextField[] fields = {breakfastField, lunchField, dinnerField, extraMealField};
+        String[] names = {"早餐", "午餐", "晚餐", "加餐"};
+        int savedCount = 0;
+        StringBuilder errors = new StringBuilder();
+        try {
+            for (int i = 0; i < fields.length; i++) {
+                String text = fields[i].getText().trim();
+                if (text.isEmpty()) continue;
+                LocalDateTime mealTime = parseMealField(fields[i]);
+                if (mealTime == null) {
+                    errors.append(names[i]).append(" 时间格式不正确（应为 HH:mm）\n");
+                    continue;
+                }
+                service.saveMealTime(names[i], mealTime);
+                savedCount++;
+            }
+        } catch (SQLException ex) {
+            showAlert("保存用餐时间失败：" + ex.getMessage());
+            return;
+        }
+        if (errors.length() > 0) {
+            showAlert(errors.toString());
+        }
+        if (savedCount > 0) {
+            statusLabel.setText("已保存 " + savedCount + " 项用餐时间（同餐别自动覆盖旧值）");
+        } else if (errors.length() == 0) {
+            statusLabel.setText("请先填写要保存的用餐时间");
+        }
     }
 
     private TextField createMealTimeField(String placeholder) {
@@ -410,6 +451,15 @@ public class MainUI {
         best = updateBest(best, parseMealField(lunchField), "午餐", recordTime);
         best = updateBest(best, parseMealField(dinnerField), "晚餐", recordTime);
         best = updateBest(best, parseMealField(extraMealField), "加餐", recordTime);
+
+        // 再看已保存的用餐时间（meal_times 表，同一业务日同餐别只留最新一条），
+        // 面板没填但之前保存过的情况用这里；没有餐名就统一叫"用餐"
+        try {
+            LocalDateTime savedMealTime = service.getLatestSavedMealTime(recordTime);
+            if (savedMealTime != null) {
+                best = updateBest(best, savedMealTime, "用餐", recordTime);
+            }
+        } catch (SQLException ignored) { }
 
         // 再看数据库当天（凌晨4点起）的历史用餐记录，没有餐名就统一叫"用餐"；
         // 当天没吃过就返回 null，最终显示"空腹"
@@ -798,6 +848,107 @@ public class MainUI {
                     + "-fx-border-color: #E87FA5; -fx-border-width: 0 0 3 0; "
                     + "-fx-cursor: hand; -fx-font-weight: bold;";
             closeBtn.setStyle(normal);
+            closeBtn.setEffect(new DropShadow(4, 2, 3, Color.web("#FFC4D9")));
+        }
+        dialog.showAndWait();
+    }
+
+    // 导出报告：选择格式（Excel/PDF）和保存位置，导出重要数据到报告文件
+    private void showExportDialog(Stage owner) {
+        List<BloodSugarRecord> records = currentChartRecords;
+        if (records == null || records.isEmpty()) {
+            showAlert("暂无记录可导出，请先添加血糖数据");
+            return;
+        }
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.initOwner(owner);
+        dialog.setTitle("导出报告");
+        dialog.setHeaderText("导出重要血糖数据到 Excel / PDF 报告");
+
+        VBox box = new VBox(10);
+        box.setPadding(new Insets(10));
+
+        Label info = new Label("将导出当前筛选范围的 " + records.size() + " 条记录（明细、统计汇总、按业务日/餐别汇总）");
+        info.setFont(Font.font("Microsoft YaHei", 12));
+        info.setTextFill(Color.web(COLOR_TEXT));
+
+        Label formatLb = new Label("导出格式：");
+        formatLb.setFont(Font.font("Microsoft YaHei", 13));
+        formatLb.setTextFill(Color.web(COLOR_TITLE));
+
+        ToggleGroup formatGroup = new ToggleGroup();
+        RadioButton excelRb = new RadioButton("Excel (.xlsx)");
+        RadioButton pdfRb = new RadioButton("PDF (.pdf)");
+        excelRb.setToggleGroup(formatGroup);
+        pdfRb.setToggleGroup(formatGroup);
+        excelRb.setSelected(true);
+        excelRb.setStyle("-fx-text-fill: " + COLOR_TEXT + "; -fx-font-size: 13px;");
+        pdfRb.setStyle("-fx-text-fill: " + COLOR_TEXT + "; -fx-font-size: 13px;");
+        HBox formatRow = new HBox(16, excelRb, pdfRb);
+        formatRow.setAlignment(Pos.CENTER_LEFT);
+
+        Label hint = new Label("Excel 包含明细/统计/按业务日/按餐别 4 个表格；PDF 为排版报告（自动嵌入中文字体）");
+        hint.setFont(Font.font(11));
+        hint.setTextFill(Color.web("#8A8578"));
+
+        Button exportBtn = styledButton("选择位置并导出", COLOR_GREEN_LIGHT, COLOR_GREEN_DARK, "#A9F0C4", COLOR_GREEN_LIGHT, "#1E9E50", "#7DE3A4");
+        exportBtn.setOnAction(e -> {
+            boolean excel = excelRb.isSelected();
+            FileChooser chooser = new FileChooser();
+            chooser.setTitle("选择导出保存位置");
+            String stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
+            if (excel) {
+                chooser.setInitialFileName("血糖记录报告_" + stamp + ".xlsx");
+                chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel 文件 (*.xlsx)", "*.xlsx"));
+            } else {
+                chooser.setInitialFileName("血糖记录报告_" + stamp + ".pdf");
+                chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF 文件 (*.pdf)", "*.pdf"));
+            }
+            java.io.File target = chooser.showSaveDialog(owner);
+            if (target == null) return;
+            exportBtn.setDisable(true);
+            exportBtn.setText("正在导出…");
+            new Thread(() -> {
+                try {
+                    if (excel) {
+                        exportService.exportExcel(records, target.getAbsolutePath());
+                    } else {
+                        exportService.exportPdf(records, target.getAbsolutePath());
+                    }
+                    Platform.runLater(() -> {
+                        dialog.close();
+                        Alert ok = new Alert(Alert.AlertType.INFORMATION);
+                        ok.initOwner(owner);
+                        ok.setTitle("导出成功");
+                        ok.setHeaderText("报告已导出");
+                        ok.setContentText("文件已保存到：\n" + target.getAbsolutePath());
+                        styleDialogPane(ok.getDialogPane());
+                        ok.showAndWait();
+                    });
+                } catch (Exception ex) {
+                    Platform.runLater(() -> showAlert("导出失败：" + ex.getMessage()));
+                } finally {
+                    Platform.runLater(() -> {
+                        exportBtn.setDisable(false);
+                        exportBtn.setText("选择位置并导出");
+                    });
+                }
+            }).start();
+        });
+
+        box.getChildren().addAll(info, formatLb, formatRow, hint, exportBtn);
+
+        dialog.getDialogPane().setContent(box);
+        ButtonType closeType = new ButtonType("关闭", ButtonBar.ButtonData.CANCEL_CLOSE);
+        dialog.getDialogPane().getButtonTypes().addAll(closeType);
+        styleDialogPane(dialog.getDialogPane());
+        Button closeBtn = (Button) dialog.getDialogPane().lookupButton(closeType);
+        if (closeBtn != null) {
+            closeBtn.setStyle("-fx-background-color: linear-gradient(to bottom, #FFD3E2, #FFA8C5); "
+                    + "-fx-text-fill: #8C3B52; -fx-font-size: 13px; -fx-padding: 8 20; "
+                    + "-fx-background-radius: 18; -fx-border-radius: 18; "
+                    + "-fx-border-color: #E87FA5; -fx-border-width: 0 0 3 0; "
+                    + "-fx-cursor: hand; -fx-font-weight: bold;");
             closeBtn.setEffect(new DropShadow(4, 2, 3, Color.web("#FFC4D9")));
         }
         dialog.showAndWait();

@@ -4,6 +4,7 @@ import com.bloodsugar.config.DatabaseConfig;
 import com.bloodsugar.model.BloodSugarRecord;
 
 import java.sql.*;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
@@ -118,6 +119,38 @@ public class BloodSugarDAO {
             }
         }
         return dates;
+    }
+
+    // 保存/覆盖用餐时间：同一业务日同一餐别只保留最新一条，重复保存时覆盖旧值
+    public void upsertMealTime(LocalDate businessDate, String mealName, LocalDateTime mealTime) throws SQLException {
+        String sql = "MERGE INTO meal_times (business_date, meal_name, meal_time) "
+                + "KEY (business_date, meal_name) VALUES (?, ?, ?)";
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setObject(1, businessDate);
+            ps.setString(2, mealName);
+            ps.setObject(3, mealTime);
+            ps.executeUpdate();
+        }
+    }
+
+    // 查某业务日当天、before 之前（含）最近一条保存的用餐时间，没有就返回 null
+    public LocalDateTime findLatestSavedMealTime(LocalDate businessDate, LocalDateTime before) throws SQLException {
+        String sql = "SELECT meal_time FROM meal_times "
+                + "WHERE business_date = ? AND meal_time <= ? "
+                + "ORDER BY meal_time DESC LIMIT 1";
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setObject(1, businessDate);
+            ps.setObject(2, before);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) {
+                    Timestamp ts = rs.getTimestamp(1);
+                    return ts != null ? ts.toLocalDateTime() : null;
+                }
+            }
+        }
+        return null;
     }
 
     private BloodSugarRecord mapRow(ResultSet rs) throws SQLException {
