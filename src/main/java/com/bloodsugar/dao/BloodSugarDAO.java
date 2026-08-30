@@ -14,7 +14,8 @@ public class BloodSugarDAO {
 
     // 插入一条记录
     public void insert(BloodSugarRecord record) throws SQLException {
-        String sql = "INSERT INTO blood_sugar_records (record_time, blood_sugar, meal_time, meal_period, meal_type, note) VALUES (?, ?, ?, ?, ?, ?)";
+        String sql = "INSERT INTO blood_sugar_records (record_time, blood_sugar, meal_time, meal_period, meal_type, note, "
+                + "insulin, carbs, activity, weight, pulse, blood_pressure) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)";
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setObject(1, record.getRecordTime());
@@ -23,6 +24,12 @@ public class BloodSugarDAO {
             ps.setString(4, record.getMealPeriod());
             ps.setString(5, record.getMealType());
             ps.setString(6, record.getNote());
+            ps.setDouble(7, record.getInsulin());
+            ps.setDouble(8, record.getCarbs());
+            ps.setDouble(9, record.getActivity());
+            ps.setDouble(10, record.getWeight());
+            ps.setDouble(11, record.getPulse());
+            ps.setString(12, record.getBloodPressure());
             ps.executeUpdate();
         }
     }
@@ -70,7 +77,8 @@ public class BloodSugarDAO {
 
     // 按 id 更新
     public void update(BloodSugarRecord record) throws SQLException {
-        String sql = "UPDATE blood_sugar_records SET record_time=?, blood_sugar=?, meal_time=?, meal_period=?, meal_type=?, note=? WHERE id=?";
+        String sql = "UPDATE blood_sugar_records SET record_time=?, blood_sugar=?, meal_time=?, meal_period=?, meal_type=?, note=?, "
+                + "insulin=?, carbs=?, activity=?, weight=?, pulse=?, blood_pressure=? WHERE id=?";
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setObject(1, record.getRecordTime());
@@ -79,7 +87,13 @@ public class BloodSugarDAO {
             ps.setString(4, record.getMealPeriod());
             ps.setString(5, record.getMealType());
             ps.setString(6, record.getNote());
-            ps.setInt(7, record.getId());
+            ps.setDouble(7, record.getInsulin());
+            ps.setDouble(8, record.getCarbs());
+            ps.setDouble(9, record.getActivity());
+            ps.setDouble(10, record.getWeight());
+            ps.setDouble(11, record.getPulse());
+            ps.setString(12, record.getBloodPressure());
+            ps.setInt(13, record.getId());
             ps.executeUpdate();
         }
     }
@@ -164,6 +178,12 @@ public class BloodSugarDAO {
         r.setMealPeriod(rs.getString("meal_period"));
         r.setMealType(rs.getString("meal_type"));
         r.setNote(rs.getString("note"));
+        r.setInsulin(rs.getDouble("insulin"));
+        r.setCarbs(rs.getDouble("carbs"));
+        r.setActivity(rs.getDouble("activity"));
+        r.setWeight(rs.getDouble("weight"));
+        r.setPulse(rs.getDouble("pulse"));
+        r.setBloodPressure(rs.getString("blood_pressure"));
         return r;
     }
 }

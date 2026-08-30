@@ -5,6 +5,8 @@ import com.zaxxer.hikari.HikariDataSource;
 
 import java.nio.file.Path;
 import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 
@@ -46,8 +48,21 @@ public class DatabaseConfig {
                     + "meal_period VARCHAR(20), "
                     + "meal_type VARCHAR(20), "
                     + "note VARCHAR(200), "
+                    + "insulin DOUBLE DEFAULT 0, "
+                    + "carbs DOUBLE DEFAULT 0, "
+                    + "activity DOUBLE DEFAULT 0, "
+                    + "weight DOUBLE DEFAULT 0, "
+                    + "pulse DOUBLE DEFAULT 0, "
+                    + "blood_pressure VARCHAR(20), "
                     + "created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP"
                     + ")");
+            // 兼容旧库：老版本没有健康维度字段，用 ALTER TABLE ADD COLUMN 补齐，不丢已有数据
+            migrateAddColumn(conn, "BLOOD_SUGAR_RECORDS", "INSULIN", "ALTER TABLE blood_sugar_records ADD COLUMN insulin DOUBLE DEFAULT 0");
+            migrateAddColumn(conn, "BLOOD_SUGAR_RECORDS", "CARBS", "ALTER TABLE blood_sugar_records ADD COLUMN carbs DOUBLE DEFAULT 0");
+            migrateAddColumn(conn, "BLOOD_SUGAR_RECORDS", "ACTIVITY", "ALTER TABLE blood_sugar_records ADD COLUMN activity DOUBLE DEFAULT 0");
+            migrateAddColumn(conn, "BLOOD_SUGAR_RECORDS", "WEIGHT", "ALTER TABLE blood_sugar_records ADD COLUMN weight DOUBLE DEFAULT 0");
+            migrateAddColumn(conn, "BLOOD_SUGAR_RECORDS", "PULSE", "ALTER TABLE blood_sugar_records ADD COLUMN pulse DOUBLE DEFAULT 0");
+            migrateAddColumn(conn, "BLOOD_SUGAR_RECORDS", "BLOOD_PRESSURE", "ALTER TABLE blood_sugar_records ADD COLUMN blood_pressure VARCHAR(20)");
             // 用餐时间表：同一业务日（凌晨4点边界）同一餐别只保留一条，重复保存覆盖旧值
             stmt.execute("CREATE TABLE IF NOT EXISTS meal_times ("
                     + "id INT AUTO_INCREMENT PRIMARY KEY, "
@@ -59,6 +74,23 @@ public class DatabaseConfig {
                     + ")");
         } catch (SQLException e) {
             throw new RuntimeException("数据库初始化失败", e);
+        }
+    }
+
+    /** 检查表是否缺列，缺则执行迁移 SQL（兼容旧库，不丢数据） */
+    private static void migrateAddColumn(Connection conn, String tableName, String columnName, String alterSql) throws SQLException {
+        String checkSql = "SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS "
+                + "WHERE TABLE_NAME = ? AND COLUMN_NAME = ?";
+        try (PreparedStatement ps = conn.prepareStatement(checkSql)) {
+            ps.setString(1, tableName);
+            ps.setString(2, columnName);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next() && rs.getInt(1) == 0) {
+                    try (Statement stmt = conn.createStatement()) {
+                        stmt.execute(alterSql);
+                    }
+                }
+            }
         }
     }
 
