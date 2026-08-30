@@ -47,10 +47,10 @@ public class BloodSugarDAO {
     }
 
     /**
-     * 按日期范围查询
+     * 按日期范围查询（半开区间 [from, to)）
      */
     public List<BloodSugarRecord> findByDateRange(LocalDateTime from, LocalDateTime to) throws SQLException {
-        String sql = "SELECT * FROM blood_sugar_records WHERE record_time BETWEEN ? AND ? ORDER BY record_time ASC";
+        String sql = "SELECT * FROM blood_sugar_records WHERE record_time >= ? AND record_time < ? ORDER BY record_time ASC";
         List<BloodSugarRecord> list = new ArrayList<>();
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
@@ -96,15 +96,18 @@ public class BloodSugarDAO {
     }
 
     /**
-     * 查询指定时间之前（含）最近一次用餐时间
-     * @param before 参照时间（一般为血糖测量时间）
+     * 查询指定业务日（凌晨4点起）内、指定时间之前（含）最近一次用餐时间
+     * @param dayStart 业务日起始时间（当天凌晨 4:00）
+     * @param before   参照时间（一般为血糖测量时间）
      * @return 最近的用餐时间，无记录返回 null
      */
-    public LocalDateTime findLatestMealTimeBefore(LocalDateTime before) throws SQLException {
-        String sql = "SELECT MAX(meal_time) FROM blood_sugar_records WHERE meal_time IS NOT NULL AND meal_time <= ?";
+    public LocalDateTime findLatestMealTimeBefore(LocalDateTime dayStart, LocalDateTime before) throws SQLException {
+        String sql = "SELECT MAX(meal_time) FROM blood_sugar_records "
+                + "WHERE meal_time IS NOT NULL AND meal_time >= ? AND meal_time <= ?";
         try (Connection conn = DatabaseConfig.getConnection();
              PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setObject(1, before);
+            ps.setObject(1, dayStart);
+            ps.setObject(2, before);
             try (ResultSet rs = ps.executeQuery()) {
                 if (rs.next()) {
                     Timestamp ts = rs.getTimestamp(1);
@@ -116,16 +119,22 @@ public class BloodSugarDAO {
     }
 
     /**
-     * 获取所有有记录的日期（用于日历筛选）
+     * 获取所有有记录的日期（用于日历筛选），以凌晨 4:00 为一天边界：
+     * 凌晨 0:00 - 3:59 的记录归属前一天
      */
     public List<String> findDistinctDates() throws SQLException {
-        String sql = "SELECT DISTINCT DATE(record_time) AS d FROM blood_sugar_records ORDER BY d DESC";
+        String sql = "SELECT DISTINCT "
+                + "CASE WHEN EXTRACT(HOUR FROM record_time) < 4 "
+                + "THEN DATEADD(DAY, -1, CAST(record_time AS DATE)) "
+                + "ELSE CAST(record_time AS DATE) END AS d "
+                + "FROM blood_sugar_records ORDER BY d DESC";
         List<String> dates = new ArrayList<>();
         try (Connection conn = DatabaseConfig.getConnection();
              Statement stmt = conn.createStatement();
              ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
-                dates.add(rs.getString("d"));
+                java.sql.Date d = rs.getDate("d");
+                if (d != null) dates.add(d.toLocalDate().toString());
             }
         }
         return dates;

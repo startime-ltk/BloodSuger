@@ -46,5 +46,30 @@
                 <include>使用说明.txt</include>
             </includes>
         </fileSet>
+
+        <!-- 源代码（便于用户查看/二次开发） -->
+        <fileSet>
+            <directory>${project.basedir}/src</directory>
+            <outputDirectory>src</outputDirectory>
+            <includes>
+                <include>**/*.java</include>
+                <include>**/*.xml</include>
+                <include>**/*.sql</include>
+                <include>**/*.bat</include>
+                <include>**/*.sh</include>
+                <include>**/*.png</include>
+                <include>**/*.ico</include>
+            </includes>
+        </fileSet>
+
+        <!-- 项目配置文件 -->
+        <fileSet>
+            <directory>${project.basedir}</directory>
+            <outputDirectory>.</outputDirectory>
+            <includes>
+                <include>pom.xml</include>
+                <include>README.md</include>
+            </includes>
+        </fileSet>
     </fileSets>
 </assembly>

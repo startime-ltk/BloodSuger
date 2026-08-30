@@ -57,10 +57,15 @@ public class BloodSugarService {
     }
 
     /**
-     * 查询指定时间之前最近一次用餐时间（用于餐别自动识别）
+     * 查询指定时间之前最近一次用餐时间（用于餐别自动识别）。
+     * 基于凌晨 4:00 的新一天边界：仅查询记录时间所在业务日内的用餐记录，
+     * 若该业务日内无用餐则返回 null（视为空腹）。
      */
     public LocalDateTime getLatestMealTimeBefore(LocalDateTime before) throws SQLException {
-        return dao.findLatestMealTimeBefore(before);
+        if (before == null) return null;
+        java.time.LocalDate businessDate = PeriodClassifier.getBusinessDate(before);
+        LocalDateTime dayStart = PeriodClassifier.getBusinessDayStart(businessDate);
+        return dao.findLatestMealTimeBefore(dayStart, before);
     }
 
     /**

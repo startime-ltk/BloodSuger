@@ -19,11 +19,17 @@ import javafx.scene.chart.XYChart;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.CheckBoxTableCell;
 import javafx.scene.control.cell.PropertyValueFactory;
+import javafx.scene.effect.DropShadow;
 import javafx.scene.input.MouseButton;
 import javafx.scene.layout.*;
 import javafx.scene.paint.Color;
+import javafx.scene.paint.CycleMethod;
+import javafx.scene.paint.LinearGradient;
+import javafx.scene.paint.Stop;
+import javafx.scene.shape.Circle;
 import javafx.scene.text.Font;
 import javafx.scene.text.FontWeight;
+import javafx.scene.text.Text;
 import javafx.stage.Stage;
 
 import java.sql.SQLException;
@@ -57,49 +63,163 @@ public class MainUI {
     private static final DateTimeFormatter TIME_FMT = DateTimeFormatter.ofPattern("HH:mm");
     private static final DateTimeFormatter CHART_FMT = DateTimeFormatter.ofPattern("MM-dd HH:mm");
 
+    // ==================== 糖果马卡龙配色常量（鲜艳可爱，摆脱灰蒙） ====================
+    private static final String COLOR_BG = "#EAFCF0";          // 主背景 薄荷糖白
+    private static final String COLOR_PANEL = "#FFFFFF";       // 面板 纯白
+    private static final String COLOR_BORDER = "#B8EED0";      // 边框 亮薄荷绿
+    private static final String COLOR_TEXT = "#3A4A42";        // 正文 深灰绿
+    private static final String COLOR_TITLE = "#2BB673";       // 标题 糖果绿
+    private static final String COLOR_TITLE_DARK = "#12A35C";  // 标题渐变深端
+    private static final String COLOR_TITLE_LIGHT = "#7FE8B0"; // 标题渐变浅端
+    private static final String COLOR_GREEN = "#3BC96E";       // 主按钮 亮糖绿
+    private static final String COLOR_GREEN_LIGHT = "#7DE3A4"; // 主按钮浅端
+    private static final String COLOR_GREEN_DARK = "#22A856";  // 主按钮深端
+    private static final String COLOR_BLUE = "#3FB8FF";        // 次按钮 天蓝
+    private static final String COLOR_BLUE_LIGHT = "#7FD3FF";  // 次按钮浅端
+    private static final String COLOR_BLUE_DARK = "#1E9FE8";   // 次按钮深端
+    private static final String COLOR_ORANGE = "#FFA45E";      // 刷新按钮 蜜桃橙
+    private static final String COLOR_ORANGE_LIGHT = "#FFC48C";// 刷新按钮浅端
+    private static final String COLOR_ORANGE_DARK = "#F58B36"; // 刷新按钮深端
+    private static final String COLOR_PINK = "#FF8FB3";        // 樱粉 装饰
+    private static final String COLOR_PINK_LIGHT = "#FFC4D9";  // 樱粉浅 装饰
+    private static final String COLOR_MEAL_BG = "#FFF6E9";     // 用餐卡片 奶油蜜桃
+    private static final String COLOR_MEAL_BG2 = "#FFE3C9";    // 用餐卡片渐变浅端
+    private static final String COLOR_MEAL_BORDER = "#FFD2A8"; // 用餐卡片边框
+    private static final String COLOR_NORMAL = "#2FC86B";      // 正常血糖 清新亮绿
+    private static final String COLOR_HIGH = "#FF8A65";        // 偏高血糖 蜜桃珊瑚
+    private static final String COLOR_HEADER = "#D9F9E4";      // 表头 亮薄荷
+    private static final String COLOR_STATUS = "#EFFBF2";      // 状态栏 薄荷白
+
+    /** 绿色系渐变文字（艺术字标题填充） */
+    private static final LinearGradient GREEN_GRADIENT = new LinearGradient(0, 0, 1, 1, true,
+            CycleMethod.NO_CYCLE,
+            new Stop(0, Color.web(COLOR_TITLE_DARK)),
+            new Stop(0.55, Color.web(COLOR_TITLE)),
+            new Stop(1, Color.web(COLOR_TITLE_LIGHT)));
+
+    /** 糖果系渐变文字（主标题艺术字填充：樱粉→蜜桃橙→亮糖绿） */
+    private static final LinearGradient CANDY_GRADIENT = new LinearGradient(0, 0, 1, 1, true,
+            CycleMethod.NO_CYCLE,
+            new Stop(0, Color.web("#FF7EB3")),
+            new Stop(0.5, Color.web("#FFA45E")),
+            new Stop(1, Color.web("#2FC86B")));
+
     public Scene createScene(Stage stage) {
         BorderPane root = new BorderPane();
-        root.setStyle("-fx-background-color: #f5f5f5;");
+        root.setStyle("-fx-background-color: linear-gradient(to bottom right, #F4FEF8, " + COLOR_BG + ", #CFF7E2);");
         root.setTop(buildToolbar(stage));
         root.setLeft(buildLeftPanel());
         root.setCenter(buildChartPanel());
         root.setBottom(buildStatusBar());
         refreshAll();
-        return new Scene(root, 1150, 720);
+        Scene scene = new Scene(root, 1150, 720);
+        // 表格渲染完成后设置表头糖果渐变圆角背景
+        Platform.runLater(() -> {
+            Node header = table.lookup(".column-header-background");
+            if (header != null) {
+                header.setStyle("-fx-background-color: linear-gradient(to bottom, " + COLOR_HEADER + ", #B5F0CE); "
+                        + "-fx-background-radius: 18 18 0 0; -fx-border-color: transparent;");
+            }
+        });
+        return scene;
     }
 
     // ==================== 工具栏 ====================
     private HBox buildToolbar(Stage stage) {
         HBox toolbar = new HBox(10);
-        toolbar.setPadding(new Insets(10, 16, 10, 16));
-        toolbar.setStyle("-fx-background-color: #ffffff; -fx-border-color: #e0e0e0; -fx-border-width: 0 0 1 0;");
+        toolbar.setPadding(new Insets(12, 16, 12, 16));
+        toolbar.setStyle("-fx-background-color: linear-gradient(to right, #FFFFFF, #E3FBF0, #FFF0F6); "
+                + "-fx-border-color: " + COLOR_BORDER + "; -fx-border-width: 0 0 2 0;");
         toolbar.setAlignment(Pos.CENTER_LEFT);
 
-        Label title = new Label("血糖记录系统");
-        title.setFont(Font.font("Microsoft YaHei", FontWeight.BOLD, 18));
-        title.setTextFill(Color.web("#2e7d32"));
+        // 糖果圆点装饰条
+        Circle dot1 = new Circle(5, Color.web(COLOR_PINK));
+        Circle dot2 = new Circle(5, Color.web(COLOR_ORANGE));
+        Circle dot3 = new Circle(5, Color.web(COLOR_GREEN));
+        HBox dots = new HBox(4, dot1, dot2, dot3);
+        dots.setAlignment(Pos.CENTER);
+
+        // 艺术字主标题：糖果渐变 + 白色描边 + 彩色立体阴影
+        Text title = new Text("血糖记录系统");
+        title.setFont(Font.font("YouYuan", FontWeight.BOLD, 24));
+        title.setFill(CANDY_GRADIENT);
+        title.setStroke(Color.WHITE);
+        title.setStrokeWidth(1.2);
+        title.setEffect(new DropShadow(6, 3, 3, Color.web("#8FE8B8")));
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
-        Button addBtn = styledButton("+ 添加记录", "#2e7d32");
+        Button addBtn = styledButton("+ 添加记录", COLOR_GREEN_LIGHT, COLOR_GREEN_DARK, "#A9F0C4", COLOR_GREEN_LIGHT, "#1E9E50", "#7DE3A4");
         addBtn.setOnAction(e -> showAddDialog(stage));
 
-        Button summaryBtn = styledButton("生成总结", "#1565c0");
+        Button summaryBtn = styledButton("生成总结", COLOR_BLUE_LIGHT, COLOR_BLUE_DARK, "#B5E7FF", COLOR_BLUE_LIGHT, "#1899E0", "#7FD3FF");
         summaryBtn.setOnAction(e -> showSummaryDialog(stage));
 
-        Button refreshBtn = styledButton("刷新", "#757575");
+        Button refreshBtn = styledButton("刷新", COLOR_ORANGE_LIGHT, COLOR_ORANGE_DARK, "#FFDDB8", COLOR_ORANGE_LIGHT, "#F08A33", "#FFC48C");
         refreshBtn.setOnAction(e -> refreshAll());
 
-        toolbar.getChildren().addAll(title, spacer, addBtn, summaryBtn, refreshBtn);
+        toolbar.getChildren().addAll(dots, title, spacer, addBtn, summaryBtn, refreshBtn);
         return toolbar;
     }
 
-    private Button styledButton(String text, String color) {
+    /** 胖乎乎糖果按钮样式：亮渐变 + 大圆角 + 底部深色立体边 */
+    private String buttonStyle(String from, String to, String border) {
+        return "-fx-background-color: linear-gradient(to bottom, " + from + ", " + to + "); "
+                + "-fx-text-fill: white; -fx-font-size: 14px; -fx-padding: 11 22; "
+                + "-fx-background-radius: 20; -fx-border-radius: 20; "
+                + "-fx-border-color: " + border + "; -fx-border-width: 0 0 4 0; "
+                + "-fx-cursor: hand; -fx-font-weight: bold;";
+    }
+
+    /** 糖果按钮：胖圆角 + 彩色立体阴影 + 悬停变亮 */
+    private Button styledButton(String text, String from, String to, String hoverFrom, String hoverTo,
+                                String border, String shadow) {
         Button btn = new Button(text);
-        btn.setStyle("-fx-background-color: " + color + "; -fx-text-fill: white; "
-                + "-fx-font-size: 13px; -fx-padding: 8 14; -fx-background-radius: 4;");
+        btn.setStyle(buttonStyle(from, to, border));
+        btn.setEffect(new DropShadow(5, 3, 4, Color.web(shadow)));
+        btn.setOnMouseEntered(e -> btn.setStyle(buttonStyle(hoverFrom, hoverTo, border)));
+        btn.setOnMouseExited(e -> btn.setStyle(buttonStyle(from, to, border)));
         return btn;
+    }
+
+    /** 艺术字子标题：糖果渐变填充 + 柔和彩色阴影 */
+    private Label artLabel(String text, double size) {
+        Label label = new Label(text);
+        label.setFont(Font.font("YouYuan", FontWeight.BOLD, size));
+        label.setTextFill(CANDY_GRADIENT);
+        label.setEffect(new DropShadow(2, 1, 1, Color.web("#FFD3E2")));
+        return label;
+    }
+
+    /** 统一对话框：糖果奶油渐变背景 + 大圆角 + 糖果渐变按钮 */
+    private void styleDialogPane(DialogPane pane) {
+        pane.setStyle("-fx-background-color: linear-gradient(to bottom right, #FFF6E9, " + COLOR_BG + ", #FFF0F6); "
+                + "-fx-background-radius: 20; -fx-border-color: " + COLOR_BORDER + "; -fx-border-radius: 20;");
+        Button ok = (Button) pane.lookupButton(ButtonType.OK);
+        if (ok != null) {
+            ok.setStyle(buttonStyle(COLOR_GREEN_LIGHT, COLOR_GREEN_DARK, "#1E9E50"));
+            ok.setEffect(new DropShadow(4, 2, 3, Color.web("#7DE3A4")));
+            ok.setOnMouseEntered(e -> ok.setStyle(buttonStyle("#A9F0C4", COLOR_GREEN_LIGHT, "#1E9E50")));
+            ok.setOnMouseExited(e -> ok.setStyle(buttonStyle(COLOR_GREEN_LIGHT, COLOR_GREEN_DARK, "#1E9E50")));
+        }
+        Button cancel = (Button) pane.lookupButton(ButtonType.CANCEL);
+        if (cancel != null) {
+            String normal = "-fx-background-color: linear-gradient(to bottom, #FFD3E2, #FFA8C5); "
+                    + "-fx-text-fill: #8C3B52; -fx-font-size: 13px; -fx-padding: 8 20; "
+                    + "-fx-background-radius: 18; -fx-border-radius: 18; "
+                    + "-fx-border-color: #E87FA5; -fx-border-width: 0 0 3 0; "
+                    + "-fx-cursor: hand; -fx-font-weight: bold;";
+            String hover = "-fx-background-color: linear-gradient(to bottom, #FFE0EA, #FFB9D1); "
+                    + "-fx-text-fill: #8C3B52; -fx-font-size: 13px; -fx-padding: 8 20; "
+                    + "-fx-background-radius: 18; -fx-border-radius: 18; "
+                    + "-fx-border-color: #E87FA5; -fx-border-width: 0 0 3 0; "
+                    + "-fx-cursor: hand; -fx-font-weight: bold;";
+            cancel.setStyle(normal);
+            cancel.setEffect(new DropShadow(4, 2, 3, Color.web("#FFC4D9")));
+            cancel.setOnMouseEntered(e -> cancel.setStyle(hover));
+            cancel.setOnMouseExited(e -> cancel.setStyle(normal));
+        }
     }
 
     // ==================== 左侧面板 ====================
@@ -107,21 +227,33 @@ public class MainUI {
         VBox left = new VBox(8);
         left.setPadding(new Insets(12));
         left.setPrefWidth(400);
-        left.setStyle("-fx-background-color: #ffffff; -fx-border-color: #e0e0e0; -fx-border-width: 0 1 0 0;");
+        left.setStyle("-fx-background-color: " + COLOR_PANEL + "; "
+                + "-fx-border-color: " + COLOR_BORDER + "; -fx-border-width: 0 2 0 0;");
 
-        Label filterLabel = new Label("日期筛选");
-        filterLabel.setFont(Font.font("Microsoft YaHei", FontWeight.BOLD, 13));
+        // 糖果圆点装饰条
+        HBox deco = new HBox(5);
+        deco.getChildren().addAll(
+                new Circle(4, Color.web(COLOR_PINK)),
+                new Circle(4, Color.web(COLOR_ORANGE)),
+                new Circle(4, Color.web(COLOR_GREEN)),
+                new Circle(4, Color.web(COLOR_BLUE)));
+        Label filterLabel = artLabel("日期筛选", 13);
         dateFilterCombo = new ComboBox<>();
         dateFilterCombo.setPromptText("全部日期");
         dateFilterCombo.setPrefWidth(Double.MAX_VALUE);
+        dateFilterCombo.setStyle("-fx-background-radius: 8; -fx-border-radius: 8; "
+                + "-fx-border-color: " + COLOR_MEAL_BORDER + "; -fx-background-color: #FFFFFF;");
         dateFilterCombo.setOnAction(e -> refreshTableAndChart());
 
-        Label tableLabel = new Label("血糖记录");
-        tableLabel.setFont(Font.font("Microsoft YaHei", FontWeight.BOLD, 13));
+        Label tableLabel = artLabel("血糖记录", 13);
 
         table = new TableView<>();
         table.setEditable(true);
         table.setColumnResizePolicy(TableView.CONSTRAINED_RESIZE_POLICY);
+        table.setStyle("-fx-background-color: transparent; -fx-background-radius: 12; "
+                + "-fx-border-color: " + COLOR_BORDER + "; -fx-border-radius: 12; "
+                + "-fx-border-width: 1; -fx-control-inner-background: #FFFFFF; "
+                + "-fx-table-cell-border-color: transparent;");
 
         TableColumn<BloodSugarRecord, Boolean> checkCol = new TableColumn<>("");
         checkCol.setCellValueFactory(p -> {
@@ -154,7 +286,7 @@ public class MainUI {
                 setText(String.format("%.1f", val));
                 BloodSugarRecord row = getTableView().getItems().get(getIndex());
                 boolean normal = PeriodClassifier.isNormal(row.getMealPeriod(), val);
-                setTextFill(normal ? Color.web("#2e7d32") : Color.web("#c62828"));
+                setTextFill(normal ? Color.web(COLOR_NORMAL) : Color.web(COLOR_HIGH));
                 setStyle("-fx-font-weight: bold;");
             }
         });
@@ -175,29 +307,30 @@ public class MainUI {
 
         HBox btnBar = new HBox(6);
         Button editBtn = new Button("修改");
-        editBtn.setStyle("-fx-text-fill: #1565c0; -fx-font-size: 12px;");
+        editBtn.setStyle("-fx-text-fill: " + COLOR_BLUE + "; -fx-font-size: 12px; -fx-cursor: hand; -fx-font-weight: bold;");
         editBtn.setOnAction(e -> editSelected());
 
         Button deleteBtn = new Button("删除");
-        deleteBtn.setStyle("-fx-text-fill: #c62828; -fx-font-size: 12px;");
+        deleteBtn.setStyle("-fx-text-fill: " + COLOR_HIGH + "; -fx-font-size: 12px; -fx-cursor: hand; -fx-font-weight: bold;");
         deleteBtn.setOnAction(e -> deleteSelected());
         btnBar.getChildren().addAll(editBtn, deleteBtn);
 
         VBox mealPanel = buildMealPanel();
         VBox.setVgrow(table, Priority.ALWAYS);
-        left.getChildren().addAll(filterLabel, dateFilterCombo, tableLabel, table, btnBar, mealPanel);
+        left.getChildren().addAll(deco, filterLabel, dateFilterCombo, tableLabel, table, btnBar, mealPanel);
         return left;
     }
 
     private VBox buildMealPanel() {
         VBox panel = new VBox(6);
-        panel.setPadding(new Insets(10));
-        panel.setStyle("-fx-background-color: #e8f5e9; -fx-background-radius: 6; "
-                + "-fx-border-color: #c8e6c9; -fx-border-radius: 6;");
+        panel.setPadding(new Insets(12));
+        panel.setStyle("-fx-background-color: linear-gradient(to bottom, " + COLOR_MEAL_BG + ", " + COLOR_MEAL_BG2 + "); "
+                + "-fx-background-radius: 20; "
+                + "-fx-border-color: " + COLOR_MEAL_BORDER + "; -fx-border-radius: 20; "
+                + "-fx-border-width: 2;");
+        panel.setEffect(new DropShadow(6, 3, 4, Color.web("#FFD2A8")));
 
-        Label title = new Label("今日用餐时间");
-        title.setFont(Font.font("Microsoft YaHei", FontWeight.BOLD, 13));
-        title.setTextFill(Color.web("#2e7d32"));
+        Label title = artLabel("今日用餐时间", 13);
 
         GridPane grid = new GridPane();
         grid.setHgap(8);
@@ -208,18 +341,30 @@ public class MainUI {
         dinnerField = createMealTimeField("晚餐");
         extraMealField = createMealTimeField("加餐");
 
-        grid.add(new Label("早餐"), 0, 0);
+        Label breakfastLb = new Label("早餐");
+        breakfastLb.setTextFill(Color.web(COLOR_TITLE));
+        Label lunchLb = new Label("午餐");
+        lunchLb.setTextFill(Color.web(COLOR_TITLE));
+        Label dinnerLb = new Label("晚餐");
+        dinnerLb.setTextFill(Color.web(COLOR_TITLE));
+        Label extraLb = new Label("加餐");
+        extraLb.setTextFill(Color.web(COLOR_TITLE));
+
+        grid.add(breakfastLb, 0, 0);
         grid.add(breakfastField, 1, 0);
-        grid.add(new Label("午餐"), 0, 1);
+        grid.add(lunchLb, 0, 1);
         grid.add(lunchField, 1, 1);
-        grid.add(new Label("晚餐"), 0, 2);
+        grid.add(dinnerLb, 0, 2);
         grid.add(dinnerField, 1, 2);
-        grid.add(new Label("加餐"), 0, 3);
+        grid.add(extraLb, 0, 3);
         grid.add(extraMealField, 1, 3);
 
-        Button saveMealBtn = new Button("保存用餐时间");
-        saveMealBtn.setStyle("-fx-background-color: #43a047; -fx-text-fill: white; "
-                + "-fx-font-size: 11px; -fx-padding: 4 12; -fx-background-radius: 3;");
+        Button saveMealBtn = styledButton("保存用餐时间", COLOR_GREEN_LIGHT, COLOR_GREEN_DARK, "#A9F0C4", COLOR_GREEN_LIGHT, "#1E9E50", "#7DE3A4");
+        saveMealBtn.setStyle(saveMealBtn.getStyle() + " -fx-font-size: 12px; -fx-padding: 9 18;");
+        String mealNormal = saveMealBtn.getStyle();
+        String mealHover = buttonStyle("#A9F0C4", COLOR_GREEN_LIGHT, "#1E9E50") + " -fx-font-size: 12px; -fx-padding: 9 18;";
+        saveMealBtn.setOnMouseEntered(e -> saveMealBtn.setStyle(mealHover));
+        saveMealBtn.setOnMouseExited(e -> saveMealBtn.setStyle(mealNormal));
         saveMealBtn.setOnAction(e -> statusLabel.setText("用餐时间已保存"));
 
         panel.getChildren().addAll(title, grid, saveMealBtn);
@@ -230,6 +375,8 @@ public class MainUI {
         TextField tf = new TextField();
         tf.setPromptText(placeholder + " HH:mm");
         tf.setPrefWidth(80);
+        tf.setStyle("-fx-background-radius: 8; -fx-border-radius: 8; "
+                + "-fx-border-color: " + COLOR_MEAL_BORDER + "; -fx-background-color: #FFFFFF;");
         return tf;
     }
 
@@ -258,7 +405,8 @@ public class MainUI {
         best = updateBest(best, parseMealField(dinnerField), "晚餐", recordTime);
         best = updateBest(best, parseMealField(extraMealField), "加餐", recordTime);
 
-        // 2. 从数据库查询历史用餐记录（无明确餐名，降级为"用餐"）
+        // 2. 从数据库查询记录时间所在业务日（凌晨4点起）内的历史用餐记录（无明确餐名，降级为"用餐"）
+        //    业务日内无用餐记录时返回 null，最终餐别显示"空腹"
         try {
             LocalDateTime dbMealTime = service.getLatestMealTimeBefore(recordTime);
             if (dbMealTime != null) {
@@ -281,12 +429,14 @@ public class MainUI {
     /**
      * 根据测量时间和最近用餐信息，生成精确的餐别描述。
      * 如：早餐后 2小时35分钟、空腹、睡前
+     * 规则：新的一天（凌晨4点起）内无任何用餐数据 → 空腹，不计算距上一餐时间。
      */
     private String computeMealTypeDescription(LocalDateTime recordTime, MealTimeInfo mealInfo) {
         if (recordTime == null) return "空腹";
+        // 新的一天（凌晨4点起）内无任何用餐数据 → 空腹
+        if (mealInfo == null) return "空腹";
         // 晚上 22:00 以后 → 睡前
         if (recordTime.toLocalTime().getHour() >= 22) return "睡前";
-        if (mealInfo == null) return "空腹";
 
         long minutes = java.time.Duration.between(mealInfo.time, recordTime).toMinutes();
         if (minutes < 0) return "空腹"; // 记录时间早于用餐时间
@@ -307,7 +457,9 @@ public class MainUI {
         String s = field.getText().trim();
         if (s.isEmpty()) return null;
         try {
-            return LocalDateTime.of(LocalDate.now(), LocalTime.parse(s.replace('.', ':')));
+            // 面板用餐时间按"今日业务日"（凌晨4点边界）解析：凌晨 0-4 点归属前一天
+            LocalDate businessToday = PeriodClassifier.getBusinessDate(LocalDateTime.now());
+            return LocalDateTime.of(businessToday, LocalTime.parse(s.replace('.', ':')));
         } catch (Exception e) {
             return null;
         }
@@ -316,11 +468,20 @@ public class MainUI {
     // ==================== 图表面板 ====================
     private VBox buildChartPanel() {
         VBox panel = new VBox(8);
-        panel.setPadding(new Insets(12));
-        panel.setStyle("-fx-background-color: #ffffff;");
+        panel.setPadding(new Insets(14));
+        panel.setStyle("-fx-background-color: " + COLOR_PANEL + "; -fx-background-radius: 20; "
+                + "-fx-border-color: " + COLOR_BORDER + "; -fx-border-radius: 20; -fx-border-width: 2;");
+        panel.setEffect(new DropShadow(7, 3, 4, Color.web("#8FE8B8")));
 
-        Label chartTitle = new Label("血糖趋势曲线");
-        chartTitle.setFont(Font.font("Microsoft YaHei", FontWeight.BOLD, 14));
+        // 糖果圆点装饰条
+        HBox deco = new HBox(5);
+        deco.getChildren().addAll(
+                new Circle(4, Color.web(COLOR_GREEN)),
+                new Circle(4, Color.web(COLOR_BLUE)),
+                new Circle(4, Color.web(COLOR_ORANGE)),
+                new Circle(4, Color.web(COLOR_PINK)));
+
+        Label chartTitle = artLabel("血糖趋势曲线", 14);
 
         yAxis = new NumberAxis("血糖 (mmol/L)", 0, 20, 1);
         javafx.scene.chart.CategoryAxis xAxis = new javafx.scene.chart.CategoryAxis();
@@ -332,6 +493,9 @@ public class MainUI {
         chart.setLegendVisible(true);
         chart.setCreateSymbols(true);
         chart.setLegendSide(javafx.geometry.Side.TOP);
+        chart.setStyle("-fx-background-color: #FDFEFB; -fx-background-radius: 16; "
+                + "-fx-border-color: " + COLOR_BORDER + "; -fx-border-radius: 16; "
+                + "-fx-border-width: 1;");
         // 数据点右键菜单
         chart.setOnMouseClicked(e -> {
             if (e.getButton() == MouseButton.SECONDARY) {
@@ -339,7 +503,7 @@ public class MainUI {
             }
         });
 
-        panel.getChildren().addAll(chartTitle, chart);
+        panel.getChildren().addAll(deco, chartTitle, chart);
         return panel;
     }
 
@@ -363,7 +527,7 @@ public class MainUI {
     private void showChartDeleteMenu(int recordId, String label, double bloodSugar, Node anchor) {
         ContextMenu menu = new ContextMenu();
         MenuItem deleteItem = new MenuItem(String.format("删除 %s (%.1f mmol/L)", label, bloodSugar));
-        deleteItem.setStyle("-fx-text-fill: #c62828;");
+        deleteItem.setStyle("-fx-text-fill: " + COLOR_HIGH + ";");
         deleteItem.setOnAction(e -> {
             try {
                 service.deleteRecord(recordId);
@@ -380,10 +544,12 @@ public class MainUI {
     // ==================== 状态栏 ====================
     private HBox buildStatusBar() {
         HBox bar = new HBox();
-        bar.setPadding(new Insets(6, 16, 6, 16));
-        bar.setStyle("-fx-background-color: #eeeeee;");
+        bar.setPadding(new Insets(8, 16, 8, 16));
+        bar.setStyle("-fx-background-color: linear-gradient(to right, " + COLOR_STATUS + ", #D9FBE9, #FFE9F1); "
+                + "-fx-border-color: " + COLOR_BORDER + "; -fx-border-width: 2 0 0 0;");
         statusLabel = new Label("就绪");
-        statusLabel.setFont(Font.font(12));
+        statusLabel.setFont(Font.font("YouYuan", 12));
+        statusLabel.setTextFill(Color.web(COLOR_TEXT));
         bar.getChildren().add(statusLabel);
         return bar;
     }
@@ -423,8 +589,9 @@ public class MainUI {
 
         // 餐别自动识别：使用 Label 显示，对话框打开时实时计算
         Label mealTypeLabel = new Label("空腹");
-        mealTypeLabel.setStyle("-fx-background-color: #f0f0f0; -fx-text-fill: #333; "
-                + "-fx-font-weight: bold; -fx-padding: 4 8; -fx-background-radius: 3;");
+        mealTypeLabel.setStyle("-fx-background-color: linear-gradient(to bottom, " + COLOR_GREEN_LIGHT + ", " + COLOR_GREEN_DARK + "); "
+                + "-fx-text-fill: white; "
+                + "-fx-font-weight: bold; -fx-padding: 5 14; -fx-background-radius: 14;");
         grid.add(new Label("餐别(自动):"), 0, 3);
         grid.add(mealTypeLabel, 1, 3);
 
@@ -435,7 +602,7 @@ public class MainUI {
 
         Label hintLabel = new Label("餐别根据最近用餐记录自动识别，无需手动选择");
         hintLabel.setFont(Font.font(11));
-        hintLabel.setTextFill(Color.GRAY);
+        hintLabel.setTextFill(Color.web("#8A8578"));
         grid.add(hintLabel, 1, 5);
 
         // 测量日期/时间变化时，实时刷新自动识别的餐别
@@ -455,6 +622,7 @@ public class MainUI {
 
         dialog.getDialogPane().setContent(grid);
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        styleDialogPane(dialog.getDialogPane());
 
         // 对话框展示后立即执行一次自动识别
         dialog.setOnShown(e -> refreshMealType.run());
@@ -499,7 +667,9 @@ public class MainUI {
         content.setWrapText(true);
         content.setMaxWidth(400);
         alert.getDialogPane().setContent(content);
-        alert.getDialogPane().setStyle("-fx-background-color: #e8f5e9;");
+        alert.getDialogPane().setStyle("-fx-background-color: linear-gradient(to bottom right, " + COLOR_MEAL_BG + ", #FFFFFF, #FFF0F6); "
+                + "-fx-background-radius: 20; -fx-border-color: " + COLOR_MEAL_BORDER + "; -fx-border-radius: 20;");
+        styleDialogPane(alert.getDialogPane());
         alert.showAndWait();
     }
 
@@ -607,8 +777,9 @@ public class MainUI {
 
         // 餐别自动识别（编辑时仍按新时间重新计算）
         Label editMealTypeLabel = new Label("空腹");
-        editMealTypeLabel.setStyle("-fx-background-color: #f0f0f0; -fx-text-fill: #333; "
-                + "-fx-font-weight: bold; -fx-padding: 4 8; -fx-background-radius: 3;");
+        editMealTypeLabel.setStyle("-fx-background-color: linear-gradient(to bottom, " + COLOR_GREEN_LIGHT + ", " + COLOR_GREEN_DARK + "); "
+                + "-fx-text-fill: white; "
+                + "-fx-font-weight: bold; -fx-padding: 5 14; -fx-background-radius: 14;");
         grid.add(new Label("餐别(自动):"), 0, 3);
         grid.add(editMealTypeLabel, 1, 3);
 
@@ -619,6 +790,7 @@ public class MainUI {
 
         dialog.getDialogPane().setContent(grid);
         dialog.getDialogPane().getButtonTypes().addAll(ButtonType.OK, ButtonType.CANCEL);
+        styleDialogPane(dialog.getDialogPane());
 
         // 日期/时间变化时实时刷新餐别
         Runnable refreshEditMealType = () -> {
@@ -762,8 +934,10 @@ public class MainUI {
         textArea.setWrapText(true);
         textArea.setFont(Font.font("Microsoft YaHei", 13));
         textArea.setPrefSize(520, 440);
-        textArea.setStyle("-fx-control-inner-background: #fafafa;");
+        textArea.setStyle("-fx-control-inner-background: #FDFEFB; -fx-background-radius: 14; "
+                + "-fx-border-radius: 14; -fx-border-color: " + COLOR_BORDER + ";");
         alert.getDialogPane().setContent(textArea);
+        styleDialogPane(alert.getDialogPane());
         alert.showAndWait();
     }
 
@@ -888,8 +1062,10 @@ public class MainUI {
                 currentChartRecords = service.getAllRecords();
             } else {
                 LocalDate date = LocalDate.parse(selected);
+                // 按凌晨 4:00 的业务日边界筛选：[当天4:00, 次日4:00)
                 currentChartRecords = service.getRecordsByDateRange(
-                        date.atStartOfDay(), date.atTime(23, 59, 59));
+                        PeriodClassifier.getBusinessDayStart(date),
+                        PeriodClassifier.getBusinessDayEnd(date));
             }
 
             table.setItems(FXCollections.observableArrayList(currentChartRecords));
@@ -948,10 +1124,10 @@ public class MainUI {
         chart.getData().addAll(upperLine, lowerLine, normalSeries, highSeries);
 
         Platform.runLater(() -> {
-            colorSeries(normalSeries, "#2e7d32");
-            colorSeries(highSeries, "#c62828");
-            colorSeries(upperLine, "#ff9800");
-            colorSeries(lowerLine, "#2196f3");
+            colorSeries(normalSeries, COLOR_NORMAL);
+            colorSeries(highSeries, COLOR_HIGH);
+            colorSeries(upperLine, "#FFB74D");
+            colorSeries(lowerLine, "#64B5F6");
         });
     }
 
@@ -960,7 +1136,7 @@ public class MainUI {
             if (data.getNode() != null) {
                 data.getNode().setStyle("-fx-background-color: " + color + ", white; "
                         + "-fx-background-radius: 8; -fx-background-insets: 0, 3; "
-                        + "-fx-padding: 6;  -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.3), 4, 0, 1, 1);");
+                        + "-fx-padding: 6;  -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 4, 0, 1, 1);");
             }
         }
         if (series.getNode() != null) {
@@ -973,6 +1149,7 @@ public class MainUI {
         alert.setTitle("提示");
         alert.setHeaderText(null);
         alert.setContentText(msg);
+        styleDialogPane(alert.getDialogPane());
         alert.showAndWait();
     }
 }

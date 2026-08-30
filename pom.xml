@@ -44,6 +44,14 @@
             <artifactId>HikariCP</artifactId>
             <version>5.1.0</version>
         </dependency>
+
+        <!-- SLF4J NOP：屏蔽 H2 无绑定日志警告（版本需与 H2 传递的 slf4j-api 1.7.x 一致） -->
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-nop</artifactId>
+            <version>1.7.36</version>
+            <scope>runtime</scope>
+        </dependency>
     </dependencies>
 
     <build>
