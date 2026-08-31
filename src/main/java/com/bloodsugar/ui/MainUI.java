@@ -1903,40 +1903,40 @@ public class MainUI {
         yAxis.setUpperBound(upperBound);
         yAxis.setTickUnit(tickUnit);
 
-        XYChart.Series<String, Number> normalSeries = new XYChart.Series<>();
-        normalSeries.setName("正常");
-        XYChart.Series<String, Number> highSeries = new XYChart.Series<>();
-        highSeries.setName("偏高");
+        // 所有记录画成一条连续血糖曲线（蓝色），正常/异常仅体现在标点颜色
+        XYChart.Series<String, Number> sugarSeries = new XYChart.Series<>();
+        sugarSeries.setName("血糖");
         XYChart.Series<String, Number> upperLine = new XYChart.Series<>();
         upperLine.setName("正常上限");
         XYChart.Series<String, Number> lowerLine = new XYChart.Series<>();
         lowerLine.setName("正常下限");
 
+        // 记录按测量时间升序（调用方已排序，此处按序添加保持连续）
+        Map<String, BloodSugarRecord> labelToRecord = new HashMap<>();
         for (BloodSugarRecord r : records) {
             String label = r.getRecordTime() != null
                     ? r.getRecordTime().format(CHART_FMT) : "";
             double sugar = r.getBloodSugar();
             chartLabelToId.put(label, r.getId());
-            boolean normal = PeriodClassifier.isNormal(r.getMealPeriod(), sugar);
+            labelToRecord.put(label, r);
+            // 参考线随餐别动态取值（上限 6.1/8.9/7.8，下限 3.9）
             double[] range = PeriodClassifier.getNormalRange(r.getMealPeriod());
 
-            XYChart.Data<String, Number> dataPoint = new XYChart.Data<>(label, sugar);
-            if (normal) {
-                normalSeries.getData().add(dataPoint);
-            } else {
-                highSeries.getData().add(dataPoint);
-            }
+            sugarSeries.getData().add(new XYChart.Data<>(label, sugar));
             upperLine.getData().add(new XYChart.Data<>(label, range[1]));
             lowerLine.getData().add(new XYChart.Data<>(label, range[0]));
         }
 
-        chart.getData().addAll(upperLine, lowerLine, normalSeries, highSeries);
+        chart.getData().addAll(upperLine, lowerLine, sugarSeries);
 
         Platform.runLater(() -> {
-            colorSeries(normalSeries, COLOR_NORMAL);
-            colorSeries(highSeries, COLOR_HIGH);
-            colorSeries(upperLine, "#FFB74D");
-            colorSeries(lowerLine, "#64B5F6");
+            // 参考线：上限红色（曲线上方）、下限绿色（曲线下方）
+            colorSeries(upperLine, "#FF5252");
+            colorSeries(lowerLine, "#2FC86B");
+            // 血糖曲线：蓝色连续线
+            colorSeries(sugarSeries, COLOR_BLUE);
+            // 标点按正常/异常染色 + 悬停提示
+            styleSugarPoints(sugarSeries, labelToRecord);
         });
     }
 
@@ -1951,6 +1951,45 @@ public class MainUI {
         if (series.getNode() != null) {
             series.getNode().lookup(".chart-series-line").setStyle("-fx-stroke: " + color + "; -fx-stroke-width: 2;");
         }
+    }
+
+    // 血糖标点染色：正常蓝色、高于上限或低于下限标红；并绑定悬停提示
+    private void styleSugarPoints(XYChart.Series<String, Number> series,
+                                  Map<String, BloodSugarRecord> labelToRecord) {
+        for (XYChart.Data<String, Number> data : series.getData()) {
+            Node node = data.getNode();
+            if (node == null) continue;
+            BloodSugarRecord r = labelToRecord.get(data.getXValue());
+            if (r == null) continue;
+
+            double sugar = r.getBloodSugar();
+            String period = r.getMealPeriod();
+            double[] range = PeriodClassifier.getNormalRange(period);
+            boolean normal = PeriodClassifier.isNormal(period, sugar);
+            String pointColor = normal ? COLOR_BLUE : "#FF5252";
+            node.setStyle("-fx-background-color: " + pointColor + ", white; "
+                    + "-fx-background-radius: 8; -fx-background-insets: 0, 3; "
+                    + "-fx-padding: 6;  -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 4, 0, 1, 1);");
+
+            // 鼠标悬停自动弹出提示：测量时间 / 数值 / 正常区间 / 建议
+            Tooltip tooltip = new Tooltip(buildChartTooltip(r, sugar, period, range));
+            tooltip.setStyle("-fx-background-color: #FFFDF5; -fx-background-radius: 10; "
+                    + "-fx-border-color: " + COLOR_BORDER + "; -fx-border-radius: 10; "
+                    + "-fx-text-fill: " + COLOR_TEXT + "; -fx-font-size: 13px; -fx-padding: 8 12 8 12;");
+            Tooltip.install(node, tooltip);
+        }
+    }
+
+    // 构建悬停提示文本
+    private String buildChartTooltip(BloodSugarRecord r, double sugar, String period, double[] range) {
+        String time = r.getRecordTime() != null
+                ? r.getRecordTime().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm")) : "-";
+        String periodSafe = (period == null || period.isEmpty()) ? "空腹" : period;
+        boolean normal = PeriodClassifier.isNormal(periodSafe, sugar);
+        String status = normal ? "正常" : (sugar < range[0] ? "偏低" : "偏高");
+        return String.format("时间：%s\n数值：%.1f mmol/L\n餐别：%s\n正常区间：%.1f ~ %.1f mmol/L\n状态：%s\n建议：%s",
+                time, sugar, periodSafe, range[0], range[1], status,
+                generateAdvice(sugar, periodSafe));
     }
 
     private void showAlert(String msg) {
