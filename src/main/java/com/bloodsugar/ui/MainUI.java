@@ -2015,11 +2015,16 @@ public class MainUI {
                         + "-fx-padding: 6;  -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 4, 0, 1, 1);");
 
                 // 鼠标悬停自动弹出提示：测量时间 / 数值 / 正常区间 / 建议
+                // 改用显式事件绑定（不依赖 TooltipBehavior）：进入/移动即显示，离开即隐藏
                 Tooltip tooltip = new Tooltip(tipText);
                 tooltip.setStyle("-fx-background-color: #FFFDF5; -fx-background-radius: 10; "
                         + "-fx-border-color: " + COLOR_BORDER + "; -fx-border-radius: 10; "
                         + "-fx-text-fill: " + COLOR_TEXT + "; -fx-font-size: 13px; -fx-padding: 8 12 8 12;");
-                Tooltip.install(node, tooltip);
+                tooltip.setAutoHide(true);
+                node.setPickOnBounds(true);
+                node.setOnMouseEntered(e -> tooltip.show(node, e.getScreenX(), e.getScreenY() + 18));
+                node.setOnMouseMoved(e -> tooltip.show(node, e.getScreenX(), e.getScreenY() + 18));
+                node.setOnMouseExited(e -> tooltip.hide());
             });
         }
     }
