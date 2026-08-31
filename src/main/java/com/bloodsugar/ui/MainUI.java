@@ -1941,40 +1941,86 @@ public class MainUI {
     }
 
     private void colorSeries(XYChart.Series<String, Number> series, String color) {
+        // 数据点 node 在图表渲染后才创建：监听 nodeProperty，创建后立即应用样式，避免样式丢失
         for (XYChart.Data<String, Number> data : series.getData()) {
-            if (data.getNode() != null) {
-                data.getNode().setStyle("-fx-background-color: " + color + ", white; "
-                        + "-fx-background-radius: 8; -fx-background-insets: 0, 3; "
-                        + "-fx-padding: 6;  -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 4, 0, 1, 1);");
+            applyWhenNodeReady(data, node -> node.setStyle("-fx-background-color: " + color + ", white; "
+                    + "-fx-background-radius: 8; -fx-background-insets: 0, 3; "
+                    + "-fx-padding: 6;  -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 4, 0, 1, 1);"));
+        }
+        // 系列线颜色：渲染后 lookup 设置
+        applyWhenSeriesNodeReady(series, node -> {
+            Node line = node.lookup(".chart-series-line");
+            if (line != null) {
+                line.setStyle("-fx-stroke: " + color + "; -fx-stroke-width: 2;");
             }
+        });
+    }
+
+    // 工具：data node 尚未创建时挂监听，创建后立即执行 action
+    private void applyWhenNodeReady(XYChart.Data<String, Number> data,
+                                    java.util.function.Consumer<Node> action) {
+        Node node = data.getNode();
+        if (node != null) {
+            action.accept(node);
+            return;
         }
-        if (series.getNode() != null) {
-            series.getNode().lookup(".chart-series-line").setStyle("-fx-stroke: " + color + "; -fx-stroke-width: 2;");
+        data.nodeProperty().addListener(new javafx.beans.value.ChangeListener<Node>() {
+            @Override
+            public void changed(javafx.beans.value.ObservableValue<? extends Node> obs,
+                                Node oldNode, Node newNode) {
+                if (newNode != null) {
+                    action.accept(newNode);
+                    data.nodeProperty().removeListener(this);
+                }
+            }
+        });
+    }
+
+    // 工具：series node 尚未创建时挂监听，创建后立即执行 action
+    private void applyWhenSeriesNodeReady(XYChart.Series<String, Number> series,
+                                          java.util.function.Consumer<Node> action) {
+        Node node = series.getNode();
+        if (node != null) {
+            action.accept(node);
+            return;
         }
+        series.nodeProperty().addListener(new javafx.beans.value.ChangeListener<Node>() {
+            @Override
+            public void changed(javafx.beans.value.ObservableValue<? extends Node> obs,
+                                Node oldNode, Node newNode) {
+                if (newNode != null) {
+                    action.accept(newNode);
+                    series.nodeProperty().removeListener(this);
+                }
+            }
+        });
     }
 
     // 血糖标点：统一蓝色空心圆（外圈蓝色+白色中心），并绑定悬停提示
     private void styleSugarPoints(XYChart.Series<String, Number> series,
                                   Map<String, BloodSugarRecord> labelToRecord) {
         for (XYChart.Data<String, Number> data : series.getData()) {
-            Node node = data.getNode();
-            if (node == null) continue;
             BloodSugarRecord r = labelToRecord.get(data.getXValue());
             if (r == null) continue;
 
             double sugar = r.getBloodSugar();
             String period = r.getMealPeriod();
             double[] range = PeriodClassifier.getNormalRange(period);
-            node.setStyle("-fx-background-color: " + COLOR_BLUE + ", white; "
-                    + "-fx-background-radius: 50%; -fx-background-insets: 0, 2; "
-                    + "-fx-padding: 6;  -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 4, 0, 1, 1);");
+            String tipText = buildChartTooltip(r, sugar, period, range);
 
-            // 鼠标悬停自动弹出提示：测量时间 / 数值 / 正常区间 / 建议
-            Tooltip tooltip = new Tooltip(buildChartTooltip(r, sugar, period, range));
-            tooltip.setStyle("-fx-background-color: #FFFDF5; -fx-background-radius: 10; "
-                    + "-fx-border-color: " + COLOR_BORDER + "; -fx-border-radius: 10; "
-                    + "-fx-text-fill: " + COLOR_TEXT + "; -fx-font-size: 13px; -fx-padding: 8 12 8 12;");
-            Tooltip.install(node, tooltip);
+            // 数据点 node 在图表渲染后才创建：监听 nodeProperty，创建后立即绑定样式与 Tooltip
+            applyWhenNodeReady(data, node -> {
+                node.setStyle("-fx-background-color: " + COLOR_BLUE + ", white; "
+                        + "-fx-background-radius: 50%; -fx-background-insets: 0, 2; "
+                        + "-fx-padding: 6;  -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 4, 0, 1, 1);");
+
+                // 鼠标悬停自动弹出提示：测量时间 / 数值 / 正常区间 / 建议
+                Tooltip tooltip = new Tooltip(tipText);
+                tooltip.setStyle("-fx-background-color: #FFFDF5; -fx-background-radius: 10; "
+                        + "-fx-border-color: " + COLOR_BORDER + "; -fx-border-radius: 10; "
+                        + "-fx-text-fill: " + COLOR_TEXT + "; -fx-font-size: 13px; -fx-padding: 8 12 8 12;");
+                Tooltip.install(node, tooltip);
+            });
         }
     }
 
