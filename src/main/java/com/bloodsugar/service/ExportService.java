@@ -54,13 +54,14 @@ public class ExportService {
 
     // ==================== Excel 导出 ====================
 
-    /** 导出 Excel：血糖记录明细 / 统计汇总 / 按业务日汇总 / 按餐别汇总 四个 Sheet */
+    /** 导出 Excel：血糖记录明细 / 统计汇总 / 按业务日汇总 / 按餐别汇总 / 健康数据汇总 五个 Sheet */
     public void exportExcel(List<BloodSugarRecord> records, String filePath) throws Exception {
         try (Workbook wb = new XSSFWorkbook(); OutputStream out = new FileOutputStream(filePath)) {
             writeDetailSheet(wb.createSheet("血糖记录明细"), records);
             writeStatSheet(wb.createSheet("统计汇总"), records);
             writeDaySheet(wb.createSheet("按业务日汇总"), records);
             writeMealSheet(wb.createSheet("按餐别汇总"), records);
+            writeHealthSheet(wb.createSheet("健康数据汇总"), records);
             for (int i = 0; i < wb.getNumberOfSheets(); i++) {
                 wb.getSheetAt(i).setDefaultColumnWidth(18);
             }
@@ -166,6 +167,34 @@ public class ExportService {
             row.createCell(3).setCellValue(String.format("%.1f", s[1]));
             row.createCell(4).setCellValue(String.format("%.1f", s[2]));
             row.createCell(5).setCellValue(String.format("%.0f%%", s[3]));
+        }
+        styleHeader(sheet);
+    }
+
+    /** 健康数据汇总 Sheet：近 30 天各维度均值 / 最新值 / 趋势，按日期列出有值的记录 */
+    private void writeHealthSheet(Sheet sheet, List<BloodSugarRecord> records) {
+        Row header = sheet.createRow(0);
+        String[] headers = {"日期", "胰岛素(U)", "碳水(g)", "运动(分钟)", "体重(kg)", "脉搏(次/分)", "血压(mmHg)"};
+        for (int i = 0; i < headers.length; i++) {
+            header.createCell(i).setCellValue(headers[i]);
+        }
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(30);
+        int rowIdx = 1;
+        for (BloodSugarRecord r : records) {
+            if (r.getRecordTime() == null || r.getRecordTime().isBefore(cutoff)) continue;
+            if (r.getInsulin() <= 0 && r.getCarbs() <= 0 && r.getActivity() <= 0
+                    && r.getWeight() <= 0 && r.getPulse() <= 0
+                    && (r.getBloodPressure() == null || r.getBloodPressure().isBlank())) continue;
+            Row row = sheet.createRow(rowIdx++);
+            row.createCell(0).setCellValue(r.getRecordTime().format(DATE_FMT));
+            if (r.getInsulin() > 0) row.createCell(1).setCellValue(r.getInsulin());
+            if (r.getCarbs() > 0) row.createCell(2).setCellValue(r.getCarbs());
+            if (r.getActivity() > 0) row.createCell(3).setCellValue(r.getActivity());
+            if (r.getWeight() > 0) row.createCell(4).setCellValue(r.getWeight());
+            if (r.getPulse() > 0) row.createCell(5).setCellValue(r.getPulse());
+            if (r.getBloodPressure() != null && !r.getBloodPressure().isBlank()) {
+                row.createCell(6).setCellValue(r.getBloodPressure());
+            }
         }
         styleHeader(sheet);
     }
@@ -344,6 +373,47 @@ public class ExportService {
             }
             doc.add(mealTable);
             doc.add(new Paragraph(" "));
+
+            // 健康数据汇总
+            doc.add(new Paragraph("五、健康数据汇总（近 30 天）", headFont));
+            doc.add(new Paragraph(" "));
+            List<BloodSugarRecord> healthRecords = new ArrayList<>();
+            LocalDateTime cutoff = LocalDateTime.now().minusDays(30);
+            for (BloodSugarRecord r : records) {
+                if (r.getRecordTime() != null && !r.getRecordTime().isBefore(cutoff)
+                        && (r.getInsulin() > 0 || r.getCarbs() > 0 || r.getActivity() > 0
+                        || r.getWeight() > 0 || r.getPulse() > 0
+                        || (r.getBloodPressure() != null && !r.getBloodPressure().isBlank()))) {
+                    healthRecords.add(r);
+                }
+            }
+            if (healthRecords.isEmpty()) {
+                doc.add(new Paragraph("近 30 天无健康数据记录。", bodyFont));
+                doc.add(new Paragraph(" "));
+            } else {
+                PdfPTable healthTable = new PdfPTable(7);
+                healthTable.setWidthPercentage(100);
+                healthTable.setWidths(new float[]{12, 12, 12, 12, 12, 12, 14});
+                String[] healthHeads = {"日期", "胰岛素(U)", "碳水(g)", "运动(分钟)", "体重(kg)", "脉搏(次/分)", "血压(mmHg)"};
+                for (String h : healthHeads) {
+                    PdfPCell c = new PdfPCell(new Phrase(h, headFont));
+                    c.setBackgroundColor(new com.lowagie.text.pdf.RGBColor(0xFF, 0xF0, 0xE0));
+                    c.setHorizontalAlignment(Element.ALIGN_CENTER);
+                    c.setPadding(4);
+                    healthTable.addCell(c);
+                }
+                for (BloodSugarRecord r : healthRecords) {
+                    addCell(healthTable, r.getRecordTime() != null ? r.getRecordTime().format(DATE_FMT) : "", bodyFont);
+                    addCell(healthTable, r.getInsulin() > 0 ? String.format("%.1f", r.getInsulin()) : "", bodyFont);
+                    addCell(healthTable, r.getCarbs() > 0 ? String.format("%.0f", r.getCarbs()) : "", bodyFont);
+                    addCell(healthTable, r.getActivity() > 0 ? String.format("%.0f", r.getActivity()) : "", bodyFont);
+                    addCell(healthTable, r.getWeight() > 0 ? String.format("%.1f", r.getWeight()) : "", bodyFont);
+                    addCell(healthTable, r.getPulse() > 0 ? String.format("%.0f", r.getPulse()) : "", bodyFont);
+                    addCell(healthTable, r.getBloodPressure() != null ? r.getBloodPressure() : "", bodyFont);
+                }
+                doc.add(healthTable);
+                doc.add(new Paragraph(" "));
+            }
 
             Paragraph foot = new Paragraph("以上为程序自动生成，仅供参考，不能替代医生诊断。", subFont);
             foot.setAlignment(Element.ALIGN_CENTER);

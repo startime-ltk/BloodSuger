@@ -60,9 +60,6 @@ public class MainUI {
 
     private TextField breakfastField, lunchField, dinnerField, extraMealField;
 
-    // 多维健康录入：胰岛素/碳水/运动/体重/脉搏/血压
-    private TextField insulinField, carbsField, activityField, weightField, pulseField, bpField;
-
     // 记录 X 轴标签 → 记录 ID 的映射，用于图表右键删除
     private Map<String, Integer> chartLabelToId = new HashMap<>();
     private List<BloodSugarRecord> currentChartRecords = new ArrayList<>();
@@ -333,9 +330,9 @@ public class MainUI {
         btnBar.getChildren().addAll(editBtn, deleteBtn);
 
         VBox mealPanel = buildMealPanel();
-        VBox healthPanel = buildHealthPanel();
+        Button healthEntryBtn = buildHealthEntryButton();
         VBox.setVgrow(table, Priority.ALWAYS);
-        left.getChildren().addAll(deco, filterLabel, dateFilterCombo, tableLabel, table, btnBar, mealPanel, healthPanel);
+        left.getChildren().addAll(deco, filterLabel, dateFilterCombo, tableLabel, table, btnBar, mealPanel, healthEntryBtn);
         return left;
     }
 
@@ -425,103 +422,161 @@ public class MainUI {
     }
 
     /**
-     * 多维健康录入卡片：胰岛素/碳水/运动/体重/脉搏/血压。
-     * 糖果配色沿用用餐卡片风格，数据保存到最近一条血糖记录上。
+     * 多维健康录入入口：糖果风胖按钮，位于"今日用餐时间"卡片下方。
+     * 点击打开独立对话框，可分别保存各健康维度，并查看趋势曲线。
      */
-    private VBox buildHealthPanel() {
-        VBox panel = new VBox(6);
-        panel.setPadding(new Insets(12));
-        panel.setStyle("-fx-background-color: linear-gradient(to bottom, #F0F8FF, #E4F3FF); "
-                + "-fx-background-radius: 20; "
-                + "-fx-border-color: #A8D8FF; -fx-border-radius: 20; "
-                + "-fx-border-width: 2;");
-        panel.setEffect(new DropShadow(6, 3, 4, Color.web("#A8D8FF")));
-
-        Label title = artLabel("多维健康录入", 13);
-
-        GridPane grid = new GridPane();
-        grid.setHgap(8);
-        grid.setVgap(6);
-
-        insulinField = createHealthField("胰岛素 (U)");
-        carbsField = createHealthField("碳水 (g)");
-        activityField = createHealthField("运动 (分钟)");
-        weightField = createHealthField("体重 (kg)");
-        pulseField = createHealthField("脉搏 (次/分)");
-        bpField = createHealthField("血压 120/80");
-
-        Label insulinLb = new Label("胰岛素");
-        insulinLb.setTextFill(Color.web(COLOR_BLUE_DARK));
-        Label carbsLb = new Label("碳水");
-        carbsLb.setTextFill(Color.web(COLOR_BLUE_DARK));
-        Label activityLb = new Label("运动");
-        activityLb.setTextFill(Color.web(COLOR_BLUE_DARK));
-        Label weightLb = new Label("体重");
-        weightLb.setTextFill(Color.web(COLOR_BLUE_DARK));
-        Label pulseLb = new Label("脉搏");
-        pulseLb.setTextFill(Color.web(COLOR_BLUE_DARK));
-        Label bpLb = new Label("血压");
-        bpLb.setTextFill(Color.web(COLOR_BLUE_DARK));
-
-        grid.add(insulinLb, 0, 0);
-        grid.add(insulinField, 1, 0);
-        grid.add(carbsLb, 0, 1);
-        grid.add(carbsField, 1, 1);
-        grid.add(activityLb, 0, 2);
-        grid.add(activityField, 1, 2);
-        grid.add(weightLb, 0, 3);
-        grid.add(weightField, 1, 3);
-        grid.add(pulseLb, 0, 4);
-        grid.add(pulseField, 1, 4);
-        grid.add(bpLb, 0, 5);
-        grid.add(bpField, 1, 5);
-
-        Button saveHealthBtn = styledButton("保存健康数据", COLOR_BLUE_LIGHT, COLOR_BLUE_DARK, "#A9E4FF", COLOR_BLUE_LIGHT, "#1E9FE8", "#7FD3FF");
-        saveHealthBtn.setStyle(saveHealthBtn.getStyle() + " -fx-font-size: 12px; -fx-padding: 9 18;");
-        String healthNormal = saveHealthBtn.getStyle();
-        String healthHover = buttonStyle("#A9E4FF", COLOR_BLUE_LIGHT, "#1E9FE8") + " -fx-font-size: 12px; -fx-padding: 9 18;";
-        saveHealthBtn.setOnMouseEntered(e -> saveHealthBtn.setStyle(healthHover));
-        saveHealthBtn.setOnMouseExited(e -> saveHealthBtn.setStyle(healthNormal));
-        saveHealthBtn.setOnAction(e -> saveHealthData());
-
-        panel.getChildren().addAll(title, grid, saveHealthBtn);
-        return panel;
-    }
-
-    private TextField createHealthField(String placeholder) {
-        TextField tf = new TextField();
-        tf.setPromptText(placeholder);
-        tf.setPrefWidth(110);
-        tf.setStyle("-fx-background-radius: 8; -fx-border-radius: 8; "
-                + "-fx-border-color: #A8D8FF; -fx-background-color: #FFFFFF;");
-        return tf;
+    private Button buildHealthEntryButton() {
+        Button btn = styledButton("多维健康录入", COLOR_BLUE_LIGHT, COLOR_BLUE_DARK, "#A9E4FF", COLOR_BLUE_LIGHT, "#1E9FE8", "#7FD3FF");
+        btn.setMaxWidth(Double.MAX_VALUE);
+        btn.setStyle(btn.getStyle() + " -fx-font-size: 14px; -fx-padding: 14 22;");
+        String normal = btn.getStyle();
+        String hover = buttonStyle("#A9E4FF", COLOR_BLUE_LIGHT, "#1E9FE8") + " -fx-font-size: 14px; -fx-padding: 14 22;";
+        btn.setOnMouseEntered(e -> btn.setStyle(hover));
+        btn.setOnMouseExited(e -> btn.setStyle(normal));
+        btn.setOnAction(e -> {
+            Stage stage = (Stage) table.getScene().getWindow();
+            showHealthDialog(stage);
+        });
+        return btn;
     }
 
     /**
-     * 保存多维健康数据：绑定到最新一条血糖记录。
-     * 只更新填了值的字段，留空表示保持原值，避免误覆盖。
+     * 多维健康录入对话框：胰岛素/碳水/运动/体重/脉搏/血压可分别保存（留空保持原值），
+     * 下方 TabPane 按维度展示各健康指标随日期的趋势曲线。
      */
-    private void saveHealthData() {
+    private void showHealthDialog(Stage owner) {
+        Dialog<ButtonType> dialog = new Dialog<>();
+        dialog.initOwner(owner);
+        dialog.setTitle("多维健康录入");
+        dialog.setHeaderText("分别记录健康数据，留空的维度不会覆盖原值");
+
+        VBox root = new VBox(10);
+        root.setPadding(new Insets(12));
+
+        Label tip = new Label("填写后点该项右侧「保存」可单独保存，或点底部「一键保存已填项」；下方按日期展示各维度趋势曲线");
+        tip.setFont(Font.font(11));
+        tip.setTextFill(Color.web("#8A8578"));
+        tip.setWrapText(true);
+
+        TextField hInsulinField = createHealthField("胰岛素 (U)");
+        TextField hCarbsField = createHealthField("碳水 (g)");
+        TextField hActivityField = createHealthField("运动 (分钟)");
+        TextField hWeightField = createHealthField("体重 (kg)");
+        TextField hPulseField = createHealthField("脉搏 (次/分)");
+        TextField hBpField = createHealthField("血压 120/80");
+
+        String[] names = {"胰岛素", "碳水", "运动", "体重", "脉搏", "血压"};
+        TextField[] hFields = {hInsulinField, hCarbsField, hActivityField, hWeightField, hPulseField, hBpField};
+
+        GridPane grid = new GridPane();
+        grid.setHgap(10);
+        grid.setVgap(8);
+        for (int i = 0; i < names.length; i++) {
+            Label lb = new Label(names[i]);
+            lb.setTextFill(Color.web(COLOR_BLUE_DARK));
+            lb.setMinWidth(44);
+            final int idx = i;
+            Button singleBtn = new Button("保存");
+            singleBtn.setStyle("-fx-background-color: linear-gradient(to bottom, #A9E4FF, #3FB8FF); -fx-text-fill: white; "
+                    + "-fx-font-size: 11px; -fx-padding: 4 12; -fx-background-radius: 14; -fx-border-radius: 14; "
+                    + "-fx-border-color: #1E9FE8; -fx-border-width: 0 0 3 0; -fx-cursor: hand; -fx-font-weight: bold;");
+            singleBtn.setOnAction(e -> saveSingleHealthData(hFields[idx], names[idx]));
+            grid.add(lb, 0, i);
+            grid.add(hFields[i], 1, i);
+            grid.add(singleBtn, 2, i);
+        }
+
+        Button saveAllBtn = styledButton("一键保存已填项", COLOR_BLUE_LIGHT, COLOR_BLUE_DARK, "#A9E4FF", COLOR_BLUE_LIGHT, "#1E9FE8", "#7FD3FF");
+        saveAllBtn.setStyle(saveAllBtn.getStyle() + " -fx-font-size: 13px; -fx-padding: 10 20;");
+        saveAllBtn.setOnAction(e -> saveHealthFieldsFromDialog(hFields));
+
+        Label trendTitle = artLabel("各维度趋势曲线（按日期）", 13);
+
+        root.getChildren().addAll(tip, grid, saveAllBtn,
+                new javafx.scene.control.Separator(), trendTitle, buildHealthTrendTabs());
+        dialog.getDialogPane().setContent(root);
+        dialog.getDialogPane().setPrefSize(620, 620);
+
+        ButtonType closeType = new ButtonType("关闭", ButtonBar.ButtonData.CANCEL_CLOSE);
+        dialog.getDialogPane().getButtonTypes().addAll(closeType);
+        styleDialogPane(dialog.getDialogPane());
+        Button closeBtn = (Button) dialog.getDialogPane().lookupButton(closeType);
+        if (closeBtn != null) {
+            closeBtn.setStyle("-fx-background-color: linear-gradient(to bottom, #FFD3E2, #FFA8C5); "
+                    + "-fx-text-fill: #8C3B52; -fx-font-size: 13px; -fx-padding: 8 20; "
+                    + "-fx-background-radius: 18; -fx-border-radius: 18; "
+                    + "-fx-border-color: #E87FA5; -fx-border-width: 0 0 3 0; "
+                    + "-fx-cursor: hand; -fx-font-weight: bold;");
+            closeBtn.setEffect(new DropShadow(4, 2, 3, Color.web("#FFC4D9")));
+        }
+        dialog.showAndWait();
+    }
+
+    /** 分别保存：单独保存某一项健康数据到最新一条血糖记录 */
+    private void saveSingleHealthData(TextField field, String name) {
         try {
             java.util.List<BloodSugarRecord> all = service.getAllRecords();
             if (all.isEmpty()) {
                 showAlert("暂无血糖记录，请先添加一条血糖记录后再保存健康数据");
                 return;
             }
+            String text = field.getText().trim();
+            if (text.isEmpty()) {
+                statusLabel.setText("请先填写" + name + "的值");
+                return;
+            }
             BloodSugarRecord rec = all.get(0); // findAll 按时间倒序，第一条即最新
+            if ("血压".equals(name)) {
+                if (!text.matches("\\d{2,3}/\\d{2,3}")) {
+                    showAlert("血压格式应为 收缩压/舒张压，例如 120/80");
+                    return;
+                }
+                rec.setBloodPressure(text);
+            } else {
+                double v = Double.parseDouble(text);
+                if (v < 0) throw new NumberFormatException(name + "不能为负数");
+                switch (name) {
+                    case "胰岛素": rec.setInsulin(v); break;
+                    case "碳水": rec.setCarbs(v); break;
+                    case "运动": rec.setActivity(v); break;
+                    case "体重": rec.setWeight(v); break;
+                    case "脉搏": rec.setPulse(v); break;
+                    default: return;
+                }
+            }
+            service.updateRecord(rec);
+            field.clear();
+            refreshAll();
+            statusLabel.setText("已保存" + name + "到最新记录 " + rec.getRecordTime().format(TIME_FMT));
+        } catch (SQLException ex) {
+            showAlert("保存健康数据失败：" + ex.getMessage());
+        } catch (NumberFormatException ex) {
+            showAlert("数字格式有误：" + ex.getMessage());
+        }
+    }
+
+    /** 一键保存：保存对话框内所有非空字段，留空保持原值 */
+    private void saveHealthFieldsFromDialog(TextField[] fields) {
+        try {
+            java.util.List<BloodSugarRecord> all = service.getAllRecords();
+            if (all.isEmpty()) {
+                showAlert("暂无血糖记录，请先添加一条血糖记录后再保存健康数据");
+                return;
+            }
+            BloodSugarRecord rec = all.get(0);
             boolean any = false;
 
-            Double insulin = parseHealthNumber(insulinField);
+            Double insulin = parseHealthNumber(fields[0]);
             if (insulin != null) { rec.setInsulin(insulin); any = true; }
-            Double carbs = parseHealthNumber(carbsField);
+            Double carbs = parseHealthNumber(fields[1]);
             if (carbs != null) { rec.setCarbs(carbs); any = true; }
-            Double activity = parseHealthNumber(activityField);
+            Double activity = parseHealthNumber(fields[2]);
             if (activity != null) { rec.setActivity(activity); any = true; }
-            Double weight = parseHealthNumber(weightField);
+            Double weight = parseHealthNumber(fields[3]);
             if (weight != null) { rec.setWeight(weight); any = true; }
-            Double pulse = parseHealthNumber(pulseField);
+            Double pulse = parseHealthNumber(fields[4]);
             if (pulse != null) { rec.setPulse(pulse); any = true; }
-            String bp = bpField.getText().trim();
+            String bp = fields[5].getText().trim();
             if (!bp.isEmpty()) {
                 if (!bp.matches("\\d{2,3}/\\d{2,3}")) {
                     showAlert("血压格式应为 收缩压/舒张压，例如 120/80");
@@ -536,7 +591,7 @@ public class MainUI {
                 return;
             }
             service.updateRecord(rec);
-            clearHealthFields();
+            for (TextField f : fields) f.clear();
             refreshAll();
             statusLabel.setText("已保存健康数据到最新记录 " + rec.getRecordTime().format(TIME_FMT));
         } catch (SQLException ex) {
@@ -544,6 +599,120 @@ public class MainUI {
         } catch (NumberFormatException ex) {
             showAlert("数字字段格式有误，请检查填写内容");
         }
+    }
+
+    /** 多维健康趋势曲线：TabPane 按维度切换，按日期展示各维度数值变化 */
+    private TabPane buildHealthTrendTabs() {
+        TabPane tabs = new TabPane();
+        tabs.setTabClosingPolicy(TabPane.TabClosingPolicy.UNAVAILABLE);
+        tabs.setPrefHeight(300);
+        tabs.setStyle("-fx-background-color: #FDFEFB; -fx-background-radius: 14; -fx-border-radius: 14; "
+                + "-fx-border-color: " + COLOR_BORDER + ";");
+
+        java.util.List<BloodSugarRecord> records;
+        try {
+            records = service.getAllRecords();
+        } catch (SQLException e) {
+            records = new java.util.ArrayList<>();
+        }
+        records.sort(Comparator.comparing(BloodSugarRecord::getRecordTime,
+                Comparator.nullsLast(Comparator.naturalOrder())));
+
+        tabs.getTabs().addAll(
+                buildDimensionTab("血糖", "mmol/L", records, r -> r.getBloodSugar(), true),
+                buildDimensionTab("胰岛素", "U", records, r -> r.getInsulin(), false),
+                buildDimensionTab("碳水", "g", records, r -> r.getCarbs(), false),
+                buildDimensionTab("运动", "分钟", records, r -> r.getActivity(), false),
+                buildDimensionTab("体重", "kg", records, r -> r.getWeight(), false),
+                buildDimensionTab("脉搏", "次/分", records, r -> r.getPulse(), false),
+                buildDimensionTab("血压(收缩压)", "mmHg", records, r -> parseSystolic(r.getBloodPressure()), false));
+        return tabs;
+    }
+
+    private Tab buildDimensionTab(String name, String unit, java.util.List<BloodSugarRecord> records,
+                                  java.util.function.ToDoubleFunction<BloodSugarRecord> extractor, boolean always) {
+        Tab tab = new Tab(name);
+        javafx.scene.chart.CategoryAxis xAxis = new javafx.scene.chart.CategoryAxis();
+        xAxis.setLabel("日期");
+        NumberAxis yAxis = new NumberAxis(name + " (" + unit + ")", 0, 10, 1);
+        LineChart<String, Number> line = new LineChart<>(xAxis, yAxis);
+        line.setAnimated(false);
+        line.setLegendVisible(false);
+        line.setCreateSymbols(true);
+        line.setPrefHeight(260);
+        line.setStyle("-fx-background-color: #FDFEFB; -fx-background-radius: 10; "
+                + "-fx-border-color: " + COLOR_BORDER + "; -fx-border-radius: 10; -fx-border-width: 1;");
+        XYChart.Series<String, Number> series = new XYChart.Series<>();
+        series.setName(name);
+        boolean hasAny = false;
+        for (BloodSugarRecord r : records) {
+            if (r.getRecordTime() == null) continue;
+            double v = extractor.applyAsDouble(r);
+            if (always || v > 0) {
+                series.getData().add(new XYChart.Data<>(r.getRecordTime().toLocalDate().toString(), v));
+                hasAny = true;
+            }
+        }
+        line.getData().add(series);
+        if (!hasAny) {
+            line.setTitle("暂无" + name + "数据");
+        }
+        double maxV = series.getData().stream()
+                .mapToDouble(d -> d.getYValue().doubleValue()).max().orElse(0);
+        if (maxV > 0) {
+            double upper = Math.max(10, Math.ceil(maxV * 1.2));
+            yAxis.setUpperBound(upper);
+            yAxis.setTickUnit(upper <= 10 ? 1 : upper <= 50 ? 5 : 10);
+        }
+        final String color = dimensionColor(name);
+        Platform.runLater(() -> {
+            for (XYChart.Data<String, Number> d : series.getData()) {
+                if (d.getNode() != null) {
+                    d.getNode().setStyle("-fx-background-color: " + color + ", white; -fx-background-radius: 8; "
+                            + "-fx-background-insets: 0, 3; -fx-padding: 6;");
+                }
+            }
+            Node seriesNode = series.getNode();
+            if (seriesNode != null) {
+                Node lineNode = seriesNode.lookup(".chart-series-line");
+                if (lineNode != null) {
+                    lineNode.setStyle("-fx-stroke: " + color + "; -fx-stroke-width: 2;");
+                }
+            }
+        });
+        tab.setContent(line);
+        return tab;
+    }
+
+    private String dimensionColor(String name) {
+        switch (name) {
+            case "血糖": return COLOR_NORMAL;
+            case "胰岛素": return COLOR_BLUE;
+            case "碳水": return COLOR_ORANGE;
+            case "运动": return COLOR_PINK;
+            case "体重": return COLOR_TITLE;
+            case "脉搏": return "#9B6BFF";
+            default: return COLOR_PINK;
+        }
+    }
+
+    /** 解析血压字符串"收缩压/舒张压"，返回收缩压；解析失败返回 -1 */
+    private double parseSystolic(String bp) {
+        if (bp == null || bp.isBlank()) return -1;
+        try {
+            return Double.parseDouble(bp.split("/")[0].trim());
+        } catch (Exception e) {
+            return -1;
+        }
+    }
+
+    private TextField createHealthField(String placeholder) {
+        TextField tf = new TextField();
+        tf.setPromptText(placeholder);
+        tf.setPrefWidth(110);
+        tf.setStyle("-fx-background-radius: 8; -fx-border-radius: 8; "
+                + "-fx-border-color: #A8D8FF; -fx-background-color: #FFFFFF;");
+        return tf;
     }
 
     /** 解析数字输入框；空返回 null，非法抛 NumberFormatException */
@@ -561,12 +730,6 @@ public class MainUI {
         double v = Double.parseDouble(text);
         if (v < 0) throw new NumberFormatException(name + "不能为负数");
         return v;
-    }
-
-    private void clearHealthFields() {
-        for (TextField tf : new TextField[]{insulinField, carbsField, activityField, weightField, pulseField, bpField}) {
-            tf.clear();
-        }
     }
 
     private TextField createMealTimeField(String placeholder) {
@@ -1509,6 +1672,13 @@ public class MainUI {
             sb.append("  估算 HbA1c 失败：" + ex.getMessage() + "\n\n");
         }
 
+        sb.append("── 健康数据汇总（近 30 天）──\n");
+        try {
+            sb.append(buildHealthSummaryText(service.getAllRecords()));
+        } catch (SQLException ex) {
+            sb.append("  读取健康数据失败：" + ex.getMessage() + "\n\n");
+        }
+
         sb.append("── 风险评估 ──\n");
         sb.append(diabetesRisk).append("\n");
         sb.append(insulinRisk).append("\n\n");
@@ -1529,6 +1699,55 @@ public class MainUI {
         alert.getDialogPane().setContent(textArea);
         styleDialogPane(alert.getDialogPane());
         alert.showAndWait();
+    }
+
+    /** 近 30 天健康数据汇总文本：均值/最新值/趋势，各维度有数据才展示 */
+    private String buildHealthSummaryText(List<BloodSugarRecord> all) {
+        StringBuilder sb = new StringBuilder();
+        if (all == null || all.isEmpty()) {
+            sb.append("  暂无记录。\n\n");
+            return sb.toString();
+        }
+        LocalDateTime now = LocalDateTime.now();
+        LocalDateTime cutoff = now.minusDays(30);
+        List<BloodSugarRecord> r30 = all.stream()
+                .filter(r -> r.getRecordTime() != null && !r.getRecordTime().isBefore(cutoff))
+                .sorted(Comparator.comparing(BloodSugarRecord::getRecordTime))
+                .collect(Collectors.toList());
+        if (r30.isEmpty()) {
+            sb.append("  近 30 天暂无记录。\n\n");
+            return sb.toString();
+        }
+        sb.append(String.format("  近 30 天记录：%d 条\n", r30.size()));
+
+        double insulinAvg = avgPositive(r30, BloodSugarRecord::getInsulin);
+        if (insulinAvg > 0) sb.append(String.format("  胰岛素平均：%.1f U/次\n", insulinAvg));
+        double carbsAvg = avgPositive(r30, BloodSugarRecord::getCarbs);
+        if (carbsAvg > 0) sb.append(String.format("  碳水平均：%.0f g/次\n", carbsAvg));
+        double activityAvg = avgPositive(r30, BloodSugarRecord::getActivity);
+        if (activityAvg > 0) sb.append(String.format("  运动平均：%.0f 分钟/次\n", activityAvg));
+        double pulseAvg = avgPositive(r30, BloodSugarRecord::getPulse);
+        if (pulseAvg > 0) sb.append(String.format("  脉搏平均：%.0f 次/分\n", pulseAvg));
+
+        BloodSugarRecord last = r30.get(r30.size() - 1);
+        if (last.getWeight() > 0) sb.append(String.format("  最新体重：%.1f kg\n", last.getWeight()));
+        if (last.getBloodPressure() != null && !last.getBloodPressure().isBlank()) {
+            sb.append("  最新血压：" + last.getBloodPressure() + "\n");
+        }
+
+        BloodSugarRecord first = r30.get(0);
+        if (first.getWeight() > 0 && last.getWeight() > 0) {
+            double diff = last.getWeight() - first.getWeight();
+            sb.append(String.format("  体重趋势：%.1f → %.1f kg（%s%.1f kg）\n", first.getWeight(), last.getWeight(),
+                    diff >= 0 ? "+" : "", diff));
+        }
+        sb.append("\n");
+        return sb.toString();
+    }
+
+    /** 有值记录的均值（只统计 > 0 的项） */
+    private double avgPositive(List<BloodSugarRecord> records, java.util.function.ToDoubleFunction<BloodSugarRecord> fn) {
+        return records.stream().mapToDouble(fn).filter(v -> v > 0).average().orElse(0);
     }
 
     private String assessDiabetesRisk(List<BloodSugarRecord> fasting, List<BloodSugarRecord> post2h,

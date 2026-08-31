@@ -17,6 +17,7 @@ import java.net.http.HttpResponse;
 import java.net.http.HttpTimeoutException;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
@@ -166,7 +167,39 @@ public class AiSuggestionService {
             sb.append(String.format("；餐后2h平均 %.1f", post2hAvg));
         }
         sb.append("。");
+
+        // ---- 多维健康数据上下文（近 30 天，仅统计有值的维度）----
+        LocalDateTime cutoff = LocalDateTime.now().minusDays(30);
+        List<BloodSugarRecord> healthRecent = records.stream()
+                .filter(r -> r.getRecordTime() != null && !r.getRecordTime().isBefore(cutoff))
+                .collect(Collectors.toList());
+
+        double insulinAvg = avgPositive(healthRecent, BloodSugarRecord::getInsulin);
+        double carbsAvg = avgPositive(healthRecent, BloodSugarRecord::getCarbs);
+        double activityAvg = avgPositive(healthRecent, BloodSugarRecord::getActivity);
+        double pulseAvg = avgPositive(healthRecent, BloodSugarRecord::getPulse);
+        BloodSugarRecord lastWithWeight = healthRecent.stream()
+                .filter(r -> r.getWeight() > 0)
+                .max(Comparator.comparing(BloodSugarRecord::getRecordTime)).orElse(null);
+        BloodSugarRecord lastWithBp = healthRecent.stream()
+                .filter(r -> r.getBloodPressure() != null && !r.getBloodPressure().isBlank())
+                .max(Comparator.comparing(BloodSugarRecord::getRecordTime)).orElse(null);
+
+        List<String> healthParts = new java.util.ArrayList<>();
+        if (insulinAvg > 0) healthParts.add(String.format("胰岛素平均 %.1f U/次", insulinAvg));
+        if (carbsAvg > 0) healthParts.add(String.format("碳水平均 %.0f g/次", carbsAvg));
+        if (activityAvg > 0) healthParts.add(String.format("运动平均 %.0f 分钟/次", activityAvg));
+        if (pulseAvg > 0) healthParts.add(String.format("脉搏平均 %.0f 次/分", pulseAvg));
+        if (lastWithWeight != null) healthParts.add(String.format("最新体重 %.1f kg", lastWithWeight.getWeight()));
+        if (lastWithBp != null) healthParts.add("最新血压 " + lastWithBp.getBloodPressure());
+        if (!healthParts.isEmpty()) {
+            sb.append("\n\n近 30 天健康数据：").append(String.join("，", healthParts)).append("。");
+        }
         return sb.toString();
+    }
+
+    private double avgPositive(List<BloodSugarRecord> records, java.util.function.ToDoubleFunction<BloodSugarRecord> fn) {
+        return records.stream().mapToDouble(fn).filter(v -> v > 0).average().orElse(0);
     }
 
     /** 用 Gson 构造 OpenAI 兼容请求体 */
