@@ -2010,7 +2010,16 @@ public class MainUI {
 
             // 数据点 node 在图表渲染后才创建：监听 nodeProperty，创建后立即绑定样式与 Tooltip
             applyWhenNodeReady(data, node -> {
-                node.setStyle("-fx-background-color: " + COLOR_BLUE + ", white; "
+                // 标点着色：高于正常上限红色 / 低于正常下限绿色 / 正常范围内蓝色（保留空心圆样式）
+                String pointColor;
+                if (sugar > range[1]) {
+                    pointColor = "#FF5252";          // 高于正常上限 → 红
+                } else if (sugar < range[0]) {
+                    pointColor = COLOR_NORMAL;       // 低于正常下限 → 绿
+                } else {
+                    pointColor = COLOR_BLUE;         // 正常范围内 → 蓝
+                }
+                node.setStyle("-fx-background-color: " + pointColor + ", white; "
                         + "-fx-background-radius: 50%; -fx-background-insets: 0, 2; "
                         + "-fx-padding: 6;  -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 4, 0, 1, 1);");
 
