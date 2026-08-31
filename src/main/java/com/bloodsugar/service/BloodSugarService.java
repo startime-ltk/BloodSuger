@@ -7,7 +7,10 @@ import com.bloodsugar.util.PeriodClassifier;
 import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
 
 /** 业务逻辑层，UI 只跟它打交道 */
 public class BloodSugarService {
@@ -36,9 +39,29 @@ public class BloodSugarService {
         return dao.findAll();
     }
 
+    // 最近 limit 条记录（主界面默认只展示近 8 条）
+    public List<BloodSugarRecord> getLatestRecords(int limit) throws SQLException {
+        return dao.findLatest(limit);
+    }
+
     // 按日期范围查
     public List<BloodSugarRecord> getRecordsByDateRange(LocalDateTime from, LocalDateTime to) throws SQLException {
         return dao.findByDateRange(from, to);
+    }
+
+    // 按业务日查当天记录（凌晨4点边界）
+    public List<BloodSugarRecord> getRecordsByBusinessDate(LocalDate businessDate) throws SQLException {
+        return dao.findByDateRange(PeriodClassifier.getBusinessDayStart(businessDate),
+                PeriodClassifier.getBusinessDayEnd(businessDate));
+    }
+
+    // 有记录的业务日集合（日历黑体标记用）
+    public Set<LocalDate> getRecordBusinessDates() throws SQLException {
+        Set<LocalDate> set = new HashSet<>();
+        for (String s : dao.findDistinctDates()) {
+            set.add(LocalDate.parse(s));
+        }
+        return set;
     }
 
     // 删除一条
@@ -73,6 +96,20 @@ public class BloodSugarService {
         if (mealName == null || mealTime == null) return;
         LocalDate businessDate = PeriodClassifier.getBusinessDate(mealTime);
         dao.upsertMealTime(businessDate, mealName, mealTime);
+    }
+
+    /**
+     * 按指定业务日保存用餐时间（日历补填用）：
+     * 业务日固定为选中日期，凌晨 0~4 点的时间也归到该业务日。
+     */
+    public void saveMealTimeForDate(LocalDate businessDate, String mealName, LocalDateTime mealTime) throws SQLException {
+        if (businessDate == null || mealName == null || mealTime == null) return;
+        dao.upsertMealTime(businessDate, mealName, mealTime);
+    }
+
+    // 查某业务日已保存的全部用餐时间（餐名 -> 时间）
+    public Map<String, LocalDateTime> getMealTimesByBusinessDate(LocalDate businessDate) throws SQLException {
+        return dao.findMealTimesByBusinessDate(businessDate);
     }
 
     /**

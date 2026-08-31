@@ -161,6 +161,10 @@ public class MainUI {
         Button addBtn = styledButton("+ 添加记录", COLOR_GREEN_LIGHT, COLOR_GREEN_DARK, "#A9F0C4", COLOR_GREEN_LIGHT, "#1E9E50", "#7DE3A4");
         addBtn.setOnAction(e -> showAddDialog(stage));
 
+        // 日历入口：查看某天数据、补填三餐时间与血糖
+        Button calendarBtn = styledButton("日历", "#FFD36E", "#F5A623", "#FFE3A1", "#FFD36E", "#C87F0A", "#FFD36E");
+        calendarBtn.setOnAction(e -> showCalendar(stage));
+
         Button summaryBtn = styledButton("生成总结", COLOR_BLUE_LIGHT, COLOR_BLUE_DARK, "#B5E7FF", COLOR_BLUE_LIGHT, "#1899E0", "#7FD3FF");
         summaryBtn.setOnAction(e -> showSummaryDialog(stage));
 
@@ -173,7 +177,7 @@ public class MainUI {
         Button refreshBtn = styledButton("刷新", COLOR_ORANGE_LIGHT, COLOR_ORANGE_DARK, "#FFDDB8", COLOR_ORANGE_LIGHT, "#F08A33", "#FFC48C");
         refreshBtn.setOnAction(e -> refreshAll());
 
-        toolbar.getChildren().addAll(dots, title, spacer, addBtn, summaryBtn, aiBtn, exportBtn, refreshBtn);
+        toolbar.getChildren().addAll(dots, title, spacer, addBtn, calendarBtn, summaryBtn, aiBtn, exportBtn, refreshBtn);
         return toolbar;
     }
 
@@ -207,7 +211,7 @@ public class MainUI {
     }
 
     /** 统一对话框样式：奶油渐变背景、大圆角、渐变按钮 */
-    private void styleDialogPane(DialogPane pane) {
+    void styleDialogPane(DialogPane pane) {
         pane.setStyle("-fx-background-color: linear-gradient(to bottom right, #FFF6E9, " + COLOR_BG + ", #FFF0F6); "
                 + "-fx-background-radius: 20; -fx-border-color: " + COLOR_BORDER + "; -fx-border-radius: 20;");
         Button ok = (Button) pane.lookupButton(ButtonType.OK);
@@ -923,17 +927,22 @@ public class MainUI {
 
     // 添加记录
     private void showAddDialog(Stage owner) {
+        showAddDialog(owner, null);
+    }
+
+    // 添加记录；presetDate 非空时为日历"补填"场景，日期预选为选中日期
+    void showAddDialog(Stage owner, LocalDate presetDate) {
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.initOwner(owner);
         dialog.setTitle("糖伴SugarPal - 添加血糖记录");
-        dialog.setHeaderText("请输入血糖测量信息");
+        dialog.setHeaderText(presetDate != null ? "补填 " + presetDate + " 血糖记录" : "请输入血糖测量信息");
 
         GridPane grid = new GridPane();
         grid.setHgap(10);
         grid.setVgap(12);
         grid.setPadding(new Insets(20));
 
-        DatePicker datePicker = new DatePicker(LocalDate.now());
+        DatePicker datePicker = new DatePicker(presetDate != null ? presetDate : LocalDate.now());
         grid.add(new Label("测量日期:"), 0, 0);
         grid.add(datePicker, 1, 0);
 
@@ -1842,8 +1851,13 @@ public class MainUI {
         return "【胰岛素抵抗评估】\n" + risk;
     }
 
+    // 日历入口：弹出月份日历，查看某天数据、补填三餐时间与血糖
+    void showCalendar(Stage stage) {
+        new CalendarDialog(stage, this).show();
+    }
+
     // 刷新数据
-    private void refreshAll() {
+    void refreshAll() {
         try {
             refreshDates();
             refreshTableAndChart();
@@ -1868,7 +1882,8 @@ public class MainUI {
         try {
             String selected = dateFilterCombo.getValue();
             if (selected == null || "全部".equals(selected)) {
-                currentChartRecords = service.getAllRecords();
+                // 主页面默认只展示最近 8 条记录；更早数据通过日历查看
+                currentChartRecords = service.getLatestRecords(8);
             } else {
                 LocalDate date = LocalDate.parse(selected);
                 // 按凌晨 4 点的业务日边界筛选：[当天4:00, 次日4:00)

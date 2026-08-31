@@ -7,7 +7,9 @@ import java.sql.*;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /** 数据访问层，读写 blood_sugar_records 表 */
 public class BloodSugarDAO {
@@ -43,6 +45,22 @@ public class BloodSugarDAO {
              ResultSet rs = stmt.executeQuery(sql)) {
             while (rs.next()) {
                 list.add(mapRow(rs));
+            }
+        }
+        return list;
+    }
+
+    // 查最近 limit 条，按测量时间倒序（主界面默认展示近 8 条）
+    public List<BloodSugarRecord> findLatest(int limit) throws SQLException {
+        String sql = "SELECT * FROM blood_sugar_records ORDER BY record_time DESC LIMIT ?";
+        List<BloodSugarRecord> list = new ArrayList<>();
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, limit);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    list.add(mapRow(rs));
+                }
             }
         }
         return list;
@@ -146,6 +164,25 @@ public class BloodSugarDAO {
             ps.setObject(3, mealTime);
             ps.executeUpdate();
         }
+    }
+
+    // 查某业务日已保存的全部用餐时间（meal_times 表），返回 餐名 -> 用餐时间
+    public Map<String, LocalDateTime> findMealTimesByBusinessDate(LocalDate businessDate) throws SQLException {
+        String sql = "SELECT meal_name, meal_time FROM meal_times WHERE business_date = ? ORDER BY meal_time ASC";
+        Map<String, LocalDateTime> map = new LinkedHashMap<>();
+        try (Connection conn = DatabaseConfig.getConnection();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setObject(1, businessDate);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    Timestamp ts = rs.getTimestamp("meal_time");
+                    if (ts != null) {
+                        map.put(rs.getString("meal_name"), ts.toLocalDateTime());
+                    }
+                }
+            }
+        }
+        return map;
     }
 
     // 查某业务日当天、before 之前（含）最近一条保存的用餐时间，没有就返回 null
