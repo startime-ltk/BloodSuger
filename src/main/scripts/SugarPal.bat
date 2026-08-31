@@ -12,5 +12,5 @@ for %%f in ("%DIR%javafx\*.jar") do (
     if "!JFX_LIST!"=="" (set JFX_LIST=%%f) else (set JFX_LIST=!JFX_LIST!;%%f)
 )
 
-java --module-path "!JFX_LIST!" --add-modules javafx.controls,javafx.fxml -jar "%DIR%BloodSugar.jar"
+java --module-path "!JFX_LIST!" --add-modules javafx.controls,javafx.fxml -jar "%DIR%SugarPal.jar"
 pause

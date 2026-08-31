@@ -6,9 +6,9 @@
     <modelVersion>4.0.0</modelVersion>
 
     <groupId>com.bloodsugar</groupId>
-    <artifactId>bloodsugar</artifactId>
+    <artifactId>sugarpal</artifactId>
     <version>1.0.0</version>
-    <name>Blood Sugar Tracker</name>
+    <name>糖伴SugarPal</name>
 
     <properties>
         <maven.compiler.source>21</maven.compiler.source>
@@ -88,7 +88,7 @@
                         <phase>package</phase>
                         <goals><goal>shade</goal></goals>
                         <configuration>
-                            <finalName>BloodSugar</finalName>
+                            <finalName>SugarPal</finalName>
                             <transformers>
                                 <transformer implementation="org.apache.maven.plugins.shade.resource.ManifestResourceTransformer">
                                     <mainClass>com.bloodsugar.BloodSugarApp</mainClass>
@@ -155,7 +155,7 @@
                         <goals><goal>single</goal></goals>
                         <configuration>
                             <appendAssemblyId>false</appendAssemblyId>
-                            <finalName>BloodSugar-dist</finalName>
+                            <finalName>SugarPal-dist</finalName>
                             <descriptors>
                                 <descriptor>${project.basedir}/src/main/assembly/assembly.xml</descriptor>
                             </descriptors>

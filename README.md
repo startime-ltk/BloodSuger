@@ -1,4 +1,4 @@
-# 血糖记录系统 (Blood Sugar Tracker)
+# 糖伴SugarPal (Sugar Pal Blood Sugar Tracker)
 
 基于 JavaFX 的桌面血糖管理工具，支持记录血糖、趋势图表、自动餐别识别、糖尿病风险评估。
 
@@ -35,7 +35,7 @@
 ```bash
 # 克隆项目
 git clone <your-repo-url>
-cd bloodsugar
+cd sugarpal
 
 # 编译
 mvn compile
@@ -45,13 +45,13 @@ mvn javafx:run
 
 # 打包为可执行 JAR
 mvn package
-# fat JAR 位于 target/BloodSugar.jar
+# fat JAR 位于 target/SugarPal.jar
 ```
 
 ## 项目结构
 
 ```
-bloodsugar/
+sugarpal/
 ├── pom.xml
 ├── sql/
 │   └── init.sql                        # 数据库建表参考

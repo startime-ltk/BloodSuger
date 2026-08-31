@@ -148,7 +148,7 @@ public class MainUI {
         dots.setAlignment(Pos.CENTER);
 
         // 艺术字主标题：糖果渐变 + 白色描边 + 彩色立体阴影
-        Text title = new Text("血糖记录系统");
+        Text title = new Text("糖伴SugarPal");
         title.setFont(Font.font("YouYuan", FontWeight.BOLD, 24));
         title.setFill(CANDY_GRADIENT);
         title.setStroke(Color.WHITE);
@@ -259,7 +259,7 @@ public class MainUI {
                 + "-fx-border-color: " + COLOR_MEAL_BORDER + "; -fx-background-color: #FFFFFF;");
         dateFilterCombo.setOnAction(e -> refreshTableAndChart());
 
-        Label tableLabel = artLabel("血糖记录", 13);
+        Label tableLabel = artLabel("糖伴SugarPal", 13);
 
         table = new TableView<>();
         table.setEditable(true);
@@ -925,7 +925,7 @@ public class MainUI {
     private void showAddDialog(Stage owner) {
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.initOwner(owner);
-        dialog.setTitle("添加血糖记录");
+        dialog.setTitle("糖伴SugarPal - 添加血糖记录");
         dialog.setHeaderText("请输入血糖测量信息");
 
         GridPane grid = new GridPane();
@@ -1248,10 +1248,10 @@ public class MainUI {
             chooser.setTitle("选择导出保存位置");
             String stamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
             if (excel) {
-                chooser.setInitialFileName("血糖记录报告_" + stamp + ".xlsx");
+                chooser.setInitialFileName("糖伴SugarPal-血糖记录报告_" + stamp + ".xlsx");
                 chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("Excel 文件 (*.xlsx)", "*.xlsx"));
             } else {
-                chooser.setInitialFileName("血糖记录报告_" + stamp + ".pdf");
+                chooser.setInitialFileName("糖伴SugarPal-血糖记录报告_" + stamp + ".pdf");
                 chooser.getExtensionFilters().add(new FileChooser.ExtensionFilter("PDF 文件 (*.pdf)", "*.pdf"));
             }
             java.io.File target = chooser.showSaveDialog(owner);
@@ -1429,7 +1429,7 @@ public class MainUI {
     private void showEditDialog(Stage owner, BloodSugarRecord rec) {
         Dialog<ButtonType> dialog = new Dialog<>();
         dialog.initOwner(owner);
-        dialog.setTitle("修改血糖记录");
+        dialog.setTitle("糖伴SugarPal - 修改血糖记录");
 
         GridPane grid = new GridPane();
         grid.setHgap(10);

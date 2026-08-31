@@ -255,7 +255,7 @@ public class ExportService {
             doc.open();
 
             // 标题
-            Paragraph title = new Paragraph("糖伴 SugarPal 血糖记录报告", titleFont);
+            Paragraph title = new Paragraph("糖伴SugarPal 血糖记录报告", titleFont);
             title.setAlignment(Element.ALIGN_CENTER);
             doc.add(title);
             Paragraph sub = new Paragraph("导出时间：" + LocalDateTime.now().format(DATETIME_FMT)

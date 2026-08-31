@@ -5,15 +5,15 @@
     <formats>
         <format>zip</format>
     </formats>
-    <baseDirectory>BloodSugar</baseDirectory>
+    <baseDirectory>SugarPal</baseDirectory>
 
     <fileSets>
-        <!-- 应用 JAR（Shade 产物的文件名固定为 BloodSugar.jar） -->
+        <!-- 应用 JAR（Shade 产物的文件名固定为 SugarPal.jar） -->
         <fileSet>
             <directory>${project.build.directory}</directory>
             <outputDirectory>.</outputDirectory>
             <includes>
-                <include>BloodSugar.jar</include>
+                <include>SugarPal.jar</include>
             </includes>
         </fileSet>
 
@@ -31,8 +31,8 @@
             <directory>${project.basedir}/src/main/scripts</directory>
             <outputDirectory>.</outputDirectory>
             <includes>
-                <include>BloodSugar.bat</include>
-                <include>BloodSugar.sh</include>
+                <include>SugarPal.bat</include>
+                <include>SugarPal.sh</include>
             </includes>
             <fileMode>0755</fileMode>
         </fileSet>

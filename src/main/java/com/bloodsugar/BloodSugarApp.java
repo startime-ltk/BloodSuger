@@ -13,7 +13,7 @@ public class BloodSugarApp extends Application {
     public void start(Stage stage) {
         MainUI ui = new MainUI();
         Scene scene = ui.createScene(stage);
-        stage.setTitle("血糖记录系统");
+        stage.setTitle("糖伴SugarPal");
         stage.getIcons().add(new Image(getClass().getResourceAsStream("/icon.png")));
         stage.setScene(scene);
         stage.setMinWidth(900);
