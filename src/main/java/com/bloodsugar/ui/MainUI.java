@@ -1214,7 +1214,20 @@ public class MainUI {
 
     // 导出报告：选择格式（Excel/PDF）和保存位置，导出重要数据到报告文件
     private void showExportDialog(Stage owner) {
-        List<BloodSugarRecord> records = currentChartRecords;
+        // 导出范围保持原语义：选中"全部"时导出全部记录（不受主界面近8条展示限制），
+        // 选中具体日期时导出该日记录
+        List<BloodSugarRecord> fetched;
+        try {
+            String selected = dateFilterCombo.getValue();
+            if (selected == null || "全部".equals(selected)) {
+                fetched = service.getAllRecords();
+            } else {
+                fetched = currentChartRecords;
+            }
+        } catch (SQLException ex) {
+            fetched = currentChartRecords;
+        }
+        final List<BloodSugarRecord> records = fetched;
         if (records == null || records.isEmpty()) {
             showAlert("暂无记录可导出，请先添加血糖数据");
             return;
