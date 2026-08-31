@@ -1953,7 +1953,7 @@ public class MainUI {
         }
     }
 
-    // 血糖标点染色：正常蓝色、高于上限或低于下限标红；并绑定悬停提示
+    // 血糖标点：统一蓝色空心圆（外圈蓝色+白色中心），并绑定悬停提示
     private void styleSugarPoints(XYChart.Series<String, Number> series,
                                   Map<String, BloodSugarRecord> labelToRecord) {
         for (XYChart.Data<String, Number> data : series.getData()) {
@@ -1965,10 +1965,8 @@ public class MainUI {
             double sugar = r.getBloodSugar();
             String period = r.getMealPeriod();
             double[] range = PeriodClassifier.getNormalRange(period);
-            boolean normal = PeriodClassifier.isNormal(period, sugar);
-            String pointColor = normal ? COLOR_BLUE : "#FF5252";
-            node.setStyle("-fx-background-color: " + pointColor + ", white; "
-                    + "-fx-background-radius: 8; -fx-background-insets: 0, 3; "
+            node.setStyle("-fx-background-color: " + COLOR_BLUE + ", white; "
+                    + "-fx-background-radius: 50%; -fx-background-insets: 0, 2; "
                     + "-fx-padding: 6;  -fx-effect: dropshadow(gaussian, rgba(0,0,0,0.15), 4, 0, 1, 1);");
 
             // 鼠标悬停自动弹出提示：测量时间 / 数值 / 正常区间 / 建议
