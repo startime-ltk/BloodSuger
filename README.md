@@ -1,4 +1,4 @@
-# 血糖记录系统 (Blood Sugar Tracker)
+# 糖伴SugarPal
 
 基于 JavaFX 的桌面血糖管理工具，支持记录血糖、趋势图表、自动餐别识别、糖尿病风险评估。
 
