@@ -8,6 +8,9 @@ import com.bloodsugar.service.BloodSugarService;
 import com.bloodsugar.service.ExportService;
 import com.bloodsugar.util.PeriodClassifier;
 
+import javafx.animation.Animation;
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Platform;
 import javafx.beans.property.BooleanProperty;
 import javafx.beans.property.SimpleBooleanProperty;
@@ -36,6 +39,7 @@ import javafx.scene.text.FontWeight;
 import javafx.scene.text.Text;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 
 import java.sql.SQLException;
 import java.time.LocalDate;
@@ -59,6 +63,10 @@ public class MainUI {
     private Label statusLabel;
 
     private TextField breakfastField, lunchField, dinnerField, extraMealField;
+
+    // 用餐时间面板当前展示的业务日（凌晨4点为新一天起点），用于跨日自动清零判断
+    private LocalDate currentMealBusinessDate;
+    private Timeline mealRolloverTimer;
 
     // 记录 X 轴标签 → 记录 ID 的映射，用于图表右键删除
     private Map<String, Integer> chartLabelToId = new HashMap<>();
@@ -120,6 +128,8 @@ public class MainUI {
         root.setCenter(buildChartPanel());
         root.setBottom(buildStatusBar());
         refreshAll();
+        refreshMealPanelFromDb();
+        startMealRolloverTimer();
         Scene scene = new Scene(root, 1150, 720);
         // 表格渲染完成后设置表头糖果渐变圆角背景
         Platform.runLater(() -> {
@@ -423,6 +433,54 @@ public class MainUI {
         } else if (errors.length() == 0) {
             statusLabel.setText("请先填写要保存的用餐时间");
         }
+    }
+
+    /**
+     * 从 meal_times 表加载"当前业务日（凌晨4点为界）"已保存的用餐时间并填入面板，
+     * 让输入保存后重启/切界面都一直显示。启动时调用；若当前已进入新业务日，
+     * 昨日数据不会被加载（自动清零），保证不显示上一个业务日的用餐时间。
+     */
+    void refreshMealPanelFromDb() {
+        LocalDate biz = PeriodClassifier.getBusinessDate(LocalDateTime.now());
+        Map<String, LocalDateTime> saved;
+        try {
+            saved = service.getMealTimesByBusinessDate(biz);
+        } catch (SQLException ex) {
+            // 读取失败时保持输入框现状，避免误清掉用户正在填写的内容
+            return;
+        }
+        currentMealBusinessDate = biz;
+        breakfastField.setText(formatMealTimeText(saved.get("早餐")));
+        lunchField.setText(formatMealTimeText(saved.get("午餐")));
+        dinnerField.setText(formatMealTimeText(saved.get("晚餐")));
+        extraMealField.setText(formatMealTimeText(saved.get("加餐")));
+    }
+
+    private String formatMealTimeText(LocalDateTime t) {
+        return t == null ? "" : t.format(TIME_FMT);
+    }
+
+    /**
+     * 每 30 秒检查一次业务日是否已变化：应用一直开着跨过凌晨 4 点时，
+     * 自动把"今日用餐时间"面板刷新成新业务日的用餐时间（新的一天通常为空，即清零）。
+     */
+    private void startMealRolloverTimer() {
+        if (mealRolloverTimer != null) return;
+        mealRolloverTimer = new Timeline(new KeyFrame(Duration.seconds(30), e -> {
+            try {
+                LocalDate biz = PeriodClassifier.getBusinessDate(LocalDateTime.now());
+                if (currentMealBusinessDate != null && !biz.equals(currentMealBusinessDate)) {
+                    refreshMealPanelFromDb();
+                    if (statusLabel != null) {
+                        statusLabel.setText("已进入新的一天，今日用餐时间已自动清零（凌晨4点）");
+                    }
+                }
+            } catch (Exception ignored) {
+                // 定时检查失败不影响主流程，下一轮会继续尝试
+            }
+        }));
+        mealRolloverTimer.setCycleCount(Animation.INDEFINITE);
+        mealRolloverTimer.play();
     }
 
     /**
